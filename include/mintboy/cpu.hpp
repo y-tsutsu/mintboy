@@ -48,6 +48,8 @@ namespace mintboy
         int Step();
 
     private:
+        int ExecuteInstruction();
+
         Byte FetchByte();
         Word FetchWord();
         std::int8_t FetchSignedByte();

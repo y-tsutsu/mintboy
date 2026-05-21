@@ -1,6 +1,7 @@
 #include "test.hpp"
 
 #include "mintboy/cartridge.hpp"
+#include "mintboy/cpu.hpp"
 #include "mintboy/memory.hpp"
 
 #include <vector>
@@ -54,4 +55,27 @@ MINTBOY_TEST(timer_overflow_reloads_modulo_and_requests_interrupt)
 
     MINTBOY_REQUIRE(memory.ReadByte(0xFF05) == 0x42);
     MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x04) != 0);
+}
+
+MINTBOY_TEST(cpu_step_advances_timer)
+{
+    std::vector<mintboy::Byte> rom(0x8000, 0);
+    rom[0x0100] = 0x00;
+    rom[0x0101] = 0x00;
+    rom[0x0102] = 0x00;
+    rom[0x0103] = 0x00;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    memory.WriteByte(0xFF07, 0x05);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF05) == 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF05) == 1);
 }

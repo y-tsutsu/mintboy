@@ -85,6 +85,13 @@ namespace mintboy
 
     int Cpu::Step()
     {
+        const int cycles = ExecuteInstruction();
+        memory_.Tick(cycles);
+        return cycles;
+    }
+
+    int Cpu::ExecuteInstruction()
+    {
         if (halted_ || stopped_)
         {
             return 4;
