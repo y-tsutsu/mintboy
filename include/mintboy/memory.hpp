@@ -18,6 +18,11 @@ namespace mintboy
 
     private:
         [[nodiscard]] int TimerPeriodCycles() const;
+        void TickTimer(int cycles);
+        void TickPpu(int cycles);
+        void SetPpuMode(Byte mode);
+        void RequestInterrupt(Byte bit);
+        void UpdateLyCompareFlag();
 
         Cartridge &cartridge_;
         std::array<Byte, 0x2000> video_ram_{};
@@ -28,5 +33,6 @@ namespace mintboy
         Byte interrupt_enable_ = 0;
         int divider_cycles_ = 0;
         int timer_cycles_ = 0;
+        int ppu_cycles_ = 0;
     };
 }
