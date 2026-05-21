@@ -137,6 +137,13 @@ namespace mintboy
         case 0x06: // LD B,d8
             registers_.b = FetchByte();
             return 8;
+        case 0x08: // LD (a16),SP
+        {
+            const Word address = FetchWord();
+            memory_.WriteByte(address, static_cast<Byte>(registers_.sp));
+            memory_.WriteByte(static_cast<Word>(address + 1), static_cast<Byte>(registers_.sp >> 8));
+            return 20;
+        }
         case 0x09: // ADD HL,BC
         {
             const Word hl = registers_.HL();
@@ -150,6 +157,9 @@ namespace mintboy
         }
         case 0x0A: // LD A,(BC)
             registers_.a = memory_.ReadByte(registers_.BC());
+            return 8;
+        case 0x0B: // DEC BC
+            registers_.SetBC(static_cast<Word>(registers_.BC() - 1));
             return 8;
         case 0x0C: // INC C
             registers_.c = static_cast<Byte>(registers_.c + 1);
@@ -194,6 +204,17 @@ namespace mintboy
         case 0x16: // LD D,d8
             registers_.d = FetchByte();
             return 8;
+        case 0x19: // ADD HL,DE
+        {
+            const Word hl = registers_.HL();
+            const Word de = registers_.DE();
+            const auto result = static_cast<std::uint32_t>(hl) + de;
+            registers_.SetHL(static_cast<Word>(result));
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, ((hl & 0x0FFF) + (de & 0x0FFF)) > 0x0FFF);
+            SetFlag(Registers::CarryFlag, result > 0xFFFF);
+            return 8;
+        }
         case 0x18: // JR r8
         {
             const auto offset = FetchSignedByte();
@@ -203,6 +224,15 @@ namespace mintboy
         case 0x1A: // LD A,(DE)
             registers_.a = memory_.ReadByte(registers_.DE());
             return 8;
+        case 0x1B: // DEC DE
+            registers_.SetDE(static_cast<Word>(registers_.DE() - 1));
+            return 8;
+        case 0x1C: // INC E
+            IncrementRegisterByIndex(3);
+            return 4;
+        case 0x1D: // DEC E
+            DecrementRegisterByIndex(3);
+            return 4;
         case 0x1E: // LD E,d8
             registers_.e = FetchByte();
             return 8;
@@ -246,6 +276,16 @@ namespace mintboy
         case 0x26: // LD H,d8
             registers_.h = FetchByte();
             return 8;
+        case 0x29: // ADD HL,HL
+        {
+            const Word hl = registers_.HL();
+            const auto result = static_cast<std::uint32_t>(hl) + hl;
+            registers_.SetHL(static_cast<Word>(result));
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, ((hl & 0x0FFF) + (hl & 0x0FFF)) > 0x0FFF);
+            SetFlag(Registers::CarryFlag, result > 0xFFFF);
+            return 8;
+        }
         case 0x28: // JR Z,r8
         {
             const auto offset = FetchSignedByte();
@@ -260,6 +300,15 @@ namespace mintboy
             registers_.a = memory_.ReadByte(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() + 1));
             return 8;
+        case 0x2B: // DEC HL
+            registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
+            return 8;
+        case 0x2C: // INC L
+            IncrementRegisterByIndex(5);
+            return 4;
+        case 0x2D: // DEC L
+            DecrementRegisterByIndex(5);
+            return 4;
         case 0x2E: // LD L,d8
             registers_.l = FetchByte();
             return 8;
@@ -275,17 +324,40 @@ namespace mintboy
             memory_.WriteByte(registers_.HL(), registers_.a);
             registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
             return 8;
+        case 0x33: // INC SP
+            ++registers_.sp;
+            return 8;
         case 0x36: // LD (HL),d8
             memory_.WriteByte(registers_.HL(), FetchByte());
+            return 12;
+        case 0x34: // INC (HL)
+            IncrementRegisterByIndex(6);
+            return 12;
+        case 0x35: // DEC (HL)
+            DecrementRegisterByIndex(6);
             return 12;
         case 0x37: // SCF
             SetFlag(Registers::SubtractFlag, false);
             SetFlag(Registers::HalfCarryFlag, false);
             SetFlag(Registers::CarryFlag, true);
             return 4;
+        case 0x39: // ADD HL,SP
+        {
+            const Word hl = registers_.HL();
+            const Word sp = registers_.sp;
+            const auto result = static_cast<std::uint32_t>(hl) + sp;
+            registers_.SetHL(static_cast<Word>(result));
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, ((hl & 0x0FFF) + (sp & 0x0FFF)) > 0x0FFF);
+            SetFlag(Registers::CarryFlag, result > 0xFFFF);
+            return 8;
+        }
         case 0x3A: // LD A,(HL-)
             registers_.a = memory_.ReadByte(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
+            return 8;
+        case 0x3B: // DEC SP
+            --registers_.sp;
             return 8;
         case 0x3C: // INC A
             IncrementRegisterByIndex(7);
@@ -304,6 +376,13 @@ namespace mintboy
         case 0xC1: // POP BC
             registers_.SetBC(PopWord());
             return 12;
+        case 0xC0: // RET NZ
+            if (!GetFlag(Registers::ZeroFlag))
+            {
+                registers_.pc = PopWord();
+                return 20;
+            }
+            return 8;
         case 0xC2: // JP NZ,a16
         {
             const Word address = FetchWord();
@@ -323,6 +402,17 @@ namespace mintboy
         case 0xC6: // ADD A,d8
             ExecuteAlu(0, FetchByte());
             return 8;
+        case 0xC4: // CALL NZ,a16
+        {
+            const Word address = FetchWord();
+            if (!GetFlag(Registers::ZeroFlag))
+            {
+                PushWord(registers_.pc);
+                registers_.pc = address;
+                return 24;
+            }
+            return 12;
+        }
         case 0xC8: // RET Z
             if (GetFlag(Registers::ZeroFlag))
             {
@@ -364,12 +454,68 @@ namespace mintboy
         case 0xD1: // POP DE
             registers_.SetDE(PopWord());
             return 12;
+        case 0xD0: // RET NC
+            if (!GetFlag(Registers::CarryFlag))
+            {
+                registers_.pc = PopWord();
+                return 20;
+            }
+            return 8;
+        case 0xD2: // JP NC,a16
+        {
+            const Word address = FetchWord();
+            if (!GetFlag(Registers::CarryFlag))
+            {
+                registers_.pc = address;
+                return 16;
+            }
+            return 12;
+        }
+        case 0xD4: // CALL NC,a16
+        {
+            const Word address = FetchWord();
+            if (!GetFlag(Registers::CarryFlag))
+            {
+                PushWord(registers_.pc);
+                registers_.pc = address;
+                return 24;
+            }
+            return 12;
+        }
         case 0xD5: // PUSH DE
             PushWord(registers_.DE());
             return 16;
         case 0xD6: // SUB d8
             ExecuteAlu(2, FetchByte());
             return 8;
+        case 0xD8: // RET C
+            if (GetFlag(Registers::CarryFlag))
+            {
+                registers_.pc = PopWord();
+                return 20;
+            }
+            return 8;
+        case 0xDA: // JP C,a16
+        {
+            const Word address = FetchWord();
+            if (GetFlag(Registers::CarryFlag))
+            {
+                registers_.pc = address;
+                return 16;
+            }
+            return 12;
+        }
+        case 0xDC: // CALL C,a16
+        {
+            const Word address = FetchWord();
+            if (GetFlag(Registers::CarryFlag))
+            {
+                PushWord(registers_.pc);
+                registers_.pc = address;
+                return 24;
+            }
+            return 12;
+        }
         case 0xE1: // POP HL
             registers_.SetHL(PopWord());
             return 12;
@@ -401,6 +547,21 @@ namespace mintboy
             return 16;
         case 0xF6: // OR d8
             ExecuteAlu(6, FetchByte());
+            return 8;
+        case 0xF8: // LD HL,SP+r8
+        {
+            const auto offset = FetchSignedByte();
+            const auto result = static_cast<std::int32_t>(registers_.sp) + offset;
+            const Word unsigned_offset = static_cast<Word>(static_cast<std::uint8_t>(offset));
+            SetFlag(Registers::ZeroFlag, false);
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, ((registers_.sp & 0x000F) + (unsigned_offset & 0x000F)) > 0x000F);
+            SetFlag(Registers::CarryFlag, ((registers_.sp & 0x00FF) + (unsigned_offset & 0x00FF)) > 0x00FF);
+            registers_.SetHL(static_cast<Word>(result));
+            return 12;
+        }
+        case 0xF9: // LD SP,HL
+            registers_.sp = registers_.HL();
             return 8;
         case 0xFA: // LD A,(a16)
             registers_.a = memory_.ReadByte(FetchWord());
