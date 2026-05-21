@@ -281,6 +281,11 @@ namespace mintboy
         {
             ppu_cycles_ -= 456;
             Byte &ly = io_registers_[LyAddress - 0xFF00];
+            if (ly < 144)
+            {
+                RenderScanline(ly);
+            }
+
             ++ly;
 
             if (ly == 144)
@@ -292,10 +297,6 @@ namespace mintboy
             {
                 ly = 0;
                 SetPpuMode(2);
-            }
-            else if (ly < 144)
-            {
-                RenderScanline(ly);
             }
 
             UpdateLyCompareFlag();

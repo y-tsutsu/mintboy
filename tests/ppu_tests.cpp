@@ -131,8 +131,8 @@ MINTBOY_TEST(ppu_renders_placeholder_scanline_into_framebuffer)
     memory.Tick(456);
 
     const auto &framebuffer = memory.GetFramebuffer();
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] != 0);
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == framebuffer[mintboy::Memory::ScreenWidth + 24]);
+    MINTBOY_REQUIRE(framebuffer[0] != 0);
+    MINTBOY_REQUIRE(framebuffer[0] == framebuffer[24]);
 }
 
 MINTBOY_TEST(ppu_renders_background_tiles_from_vram)
@@ -152,9 +152,9 @@ MINTBOY_TEST(ppu_renders_background_tiles_from_vram)
     memory.Tick(456);
 
     const auto &framebuffer = memory.GetFramebuffer();
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 7] == 0xFF8BAC0F);
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF9BBC0F);
+    MINTBOY_REQUIRE(framebuffer[0] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[7] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[8] == 0xFF9BBC0F);
 }
 
 MINTBOY_TEST(ppu_renders_window_tiles_over_background)
@@ -172,15 +172,15 @@ MINTBOY_TEST(ppu_renders_window_tiles_over_background)
     memory.WriteByte(0x9C00, 0x01);
     memory.WriteByte(0x9C01, 0x01);
     memory.WriteByte(0xFF47, 0xE4);
-    memory.WriteByte(0xFF4A, 1);
+    memory.WriteByte(0xFF4A, 0);
     memory.WriteByte(0xFF4B, 7);
     memory.WriteByte(0xFF40, 0xF1);
 
     memory.Tick(456);
 
     const auto &framebuffer = memory.GetFramebuffer();
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[0] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[8] == 0xFF8BAC0F);
 }
 
 MINTBOY_TEST(ppu_does_not_render_window_before_wy_or_wx)
@@ -202,7 +202,10 @@ MINTBOY_TEST(ppu_does_not_render_window_before_wy_or_wx)
     memory.Tick(456);
 
     const auto &framebuffer = memory.GetFramebuffer();
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF9BBC0F);
+    MINTBOY_REQUIRE(framebuffer[0] == 0xFF9BBC0F);
+    MINTBOY_REQUIRE(framebuffer[8] == 0xFF9BBC0F);
+
+    memory.Tick(456);
     MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF9BBC0F);
 
     memory.Tick(456);
@@ -233,7 +236,7 @@ MINTBOY_TEST(ppu_renders_sprite_pixels_from_oam)
 
     memory.WriteByte(0x8000, 0x80);
     memory.WriteByte(0x8001, 0x00);
-    memory.WriteByte(0xFE00, 17);
+    memory.WriteByte(0xFE00, 16);
     memory.WriteByte(0xFE01, 8);
     memory.WriteByte(0xFE02, 0);
     memory.WriteByte(0xFE03, 0);
@@ -243,8 +246,8 @@ MINTBOY_TEST(ppu_renders_sprite_pixels_from_oam)
     memory.Tick(456);
 
     const auto &framebuffer = memory.GetFramebuffer();
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 1] == 0xFF9BBC0F);
+    MINTBOY_REQUIRE(framebuffer[0] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[1] == 0xFF9BBC0F);
 }
 
 MINTBOY_TEST(ppu_respects_sprite_background_priority)
@@ -259,7 +262,7 @@ MINTBOY_TEST(ppu_respects_sprite_background_priority)
     memory.WriteByte(0x8010, 0x80);
     memory.WriteByte(0x8011, 0x80);
     memory.WriteByte(0x9800, 0);
-    memory.WriteByte(0xFE00, 17);
+    memory.WriteByte(0xFE00, 16);
     memory.WriteByte(0xFE01, 8);
     memory.WriteByte(0xFE02, 1);
     memory.WriteByte(0xFE03, 0x80);
@@ -270,5 +273,5 @@ MINTBOY_TEST(ppu_respects_sprite_background_priority)
     memory.Tick(456);
 
     const auto &framebuffer = memory.GetFramebuffer();
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[0] == 0xFF8BAC0F);
 }
