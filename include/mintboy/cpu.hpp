@@ -43,6 +43,7 @@ namespace mintboy
 
         [[nodiscard]] const Registers &GetRegisters() const;
         [[nodiscard]] bool IsHalted() const;
+        [[nodiscard]] bool IsStopped() const;
 
         int Step();
 
@@ -66,5 +67,6 @@ namespace mintboy
         Memory &memory_;
         Registers registers_{};
         bool halted_ = false;
+        bool stopped_ = false;
     };
 }

@@ -78,9 +78,14 @@ namespace mintboy
         return halted_;
     }
 
+    bool Cpu::IsStopped() const
+    {
+        return stopped_;
+    }
+
     int Cpu::Step()
     {
-        if (halted_)
+        if (halted_ || stopped_)
         {
             return 4;
         }
@@ -112,6 +117,10 @@ namespace mintboy
         switch (opcode)
         {
         case 0x00: // NOP
+            return 4;
+        case 0x10: // STOP
+            FetchByte();
+            stopped_ = true;
             return 4;
         case 0x01: // LD BC,d16
             registers_.SetBC(FetchWord());
@@ -317,6 +326,42 @@ namespace mintboy
             SetFlag(Registers::SubtractFlag, true);
             SetFlag(Registers::HalfCarryFlag, true);
             return 4;
+        case 0x27: // DAA
+        {
+            Byte adjustment = 0;
+            bool carry = GetFlag(Registers::CarryFlag);
+
+            if (!GetFlag(Registers::SubtractFlag))
+            {
+                if (GetFlag(Registers::HalfCarryFlag) || (registers_.a & 0x0F) > 0x09)
+                {
+                    adjustment |= 0x06;
+                }
+                if (carry || registers_.a > 0x99)
+                {
+                    adjustment |= 0x60;
+                    carry = true;
+                }
+                registers_.a = static_cast<Byte>(registers_.a + adjustment);
+            }
+            else
+            {
+                if (GetFlag(Registers::HalfCarryFlag))
+                {
+                    adjustment |= 0x06;
+                }
+                if (carry)
+                {
+                    adjustment |= 0x60;
+                }
+                registers_.a = static_cast<Byte>(registers_.a - adjustment);
+            }
+
+            SetFlag(Registers::ZeroFlag, registers_.a == 0);
+            SetFlag(Registers::HalfCarryFlag, false);
+            SetFlag(Registers::CarryFlag, carry);
+            return 4;
+        }
         case 0x31: // LD SP,d16
             registers_.sp = FetchWord();
             return 12;
@@ -402,6 +447,10 @@ namespace mintboy
         case 0xC6: // ADD A,d8
             ExecuteAlu(0, FetchByte());
             return 8;
+        case 0xC7: // RST 00H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0000;
+            return 16;
         case 0xC4: // CALL NZ,a16
         {
             const Word address = FetchWord();
@@ -444,6 +493,10 @@ namespace mintboy
             }
             return 12;
         }
+        case 0xCF: // RST 08H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0008;
+            return 16;
         case 0xCB: // CB prefix
             return ExecuteCb(FetchByte());
         case 0xCD: // CALL a16
@@ -490,6 +543,10 @@ namespace mintboy
         case 0xD6: // SUB d8
             ExecuteAlu(2, FetchByte());
             return 8;
+        case 0xD7: // RST 10H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0010;
+            return 16;
         case 0xD8: // RET C
             if (GetFlag(Registers::CarryFlag))
             {
@@ -518,6 +575,13 @@ namespace mintboy
             }
             return 12;
         }
+        case 0xD9: // RETI
+            registers_.pc = PopWord();
+            return 16;
+        case 0xDF: // RST 18H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0018;
+            return 16;
         case 0xE1: // POP HL
             registers_.SetHL(PopWord());
             return 12;
@@ -533,8 +597,16 @@ namespace mintboy
         case 0xE6: // AND d8
             ExecuteAlu(4, FetchByte());
             return 8;
+        case 0xE7: // RST 20H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0020;
+            return 16;
         case 0xEA: // LD (a16),A
             memory_.WriteByte(FetchWord(), registers_.a);
+            return 16;
+        case 0xEF: // RST 28H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0028;
             return 16;
         case 0xF1: // POP AF
             registers_.SetAF(PopWord());
@@ -550,6 +622,10 @@ namespace mintboy
         case 0xF6: // OR d8
             ExecuteAlu(6, FetchByte());
             return 8;
+        case 0xF7: // RST 30H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0030;
+            return 16;
         case 0xF8: // LD HL,SP+r8
         {
             const auto offset = FetchSignedByte();
@@ -573,6 +649,10 @@ namespace mintboy
         case 0xEE: // XOR d8
             ExecuteAlu(5, FetchByte());
             return 8;
+        case 0xFF: // RST 38H
+            PushWord(registers_.pc);
+            registers_.pc = 0x0038;
+            return 16;
         case 0xFE: // CP d8
             ExecuteAlu(7, FetchByte());
             return 8;
