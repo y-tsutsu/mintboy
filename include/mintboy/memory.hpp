@@ -4,15 +4,21 @@
 #include "mintboy/types.hpp"
 
 #include <array>
+#include <cstdint>
 
 namespace mintboy
 {
     class Memory
     {
     public:
+        static constexpr int ScreenWidth = 160;
+        static constexpr int ScreenHeight = 144;
+        using Framebuffer = std::array<std::uint32_t, ScreenWidth * ScreenHeight>;
+
         explicit Memory(Cartridge &cartridge);
 
         [[nodiscard]] Byte ReadByte(Word address) const;
+        [[nodiscard]] const Framebuffer &GetFramebuffer() const;
         void WriteByte(Word address, Byte value);
         void Tick(int cycles);
 
@@ -20,6 +26,7 @@ namespace mintboy
         [[nodiscard]] int TimerPeriodCycles() const;
         void TickTimer(int cycles);
         void TickPpu(int cycles);
+        void RenderScanline(Byte y);
         void SetPpuMode(Byte mode);
         void RequestInterrupt(Byte bit);
         void UpdateLyCompareFlag();
@@ -30,6 +37,7 @@ namespace mintboy
         std::array<Byte, 0xA0> oam_{};
         std::array<Byte, 0x80> io_registers_{};
         std::array<Byte, 0x7F> high_ram_{};
+        Framebuffer framebuffer_{};
         Byte interrupt_enable_ = 0;
         int divider_cycles_ = 0;
         int timer_cycles_ = 0;

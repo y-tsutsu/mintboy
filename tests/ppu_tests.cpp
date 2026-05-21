@@ -83,3 +83,16 @@ MINTBOY_TEST(ppu_sets_lyc_compare_flag)
     MINTBOY_REQUIRE(memory.ReadByte(0xFF44) == 1);
     MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x04) != 0);
 }
+
+MINTBOY_TEST(ppu_renders_placeholder_scanline_into_framebuffer)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF40, 0x80);
+    memory.Tick(456);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] != 0);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] != framebuffer[mintboy::Memory::ScreenWidth + 24]);
+}

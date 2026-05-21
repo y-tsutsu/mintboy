@@ -16,8 +16,6 @@
 
 namespace
 {
-    constexpr int ScreenWidth = 160;
-    constexpr int ScreenHeight = 144;
     constexpr int WindowScale = 4;
     constexpr int CyclesPerFrame = 70224;
 
@@ -50,8 +48,8 @@ namespace
                 title.c_str(),
                 SDL_WINDOWPOS_CENTERED,
                 SDL_WINDOWPOS_CENTERED,
-                ScreenWidth * WindowScale,
-                ScreenHeight * WindowScale,
+                mintboy::Memory::ScreenWidth * WindowScale,
+                mintboy::Memory::ScreenHeight * WindowScale,
                 SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
             if (window_ == nullptr)
             {
@@ -64,7 +62,7 @@ namespace
                 throw std::runtime_error(SDL_GetError());
             }
 
-            texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, ScreenWidth, ScreenHeight);
+            texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, mintboy::Memory::ScreenWidth, mintboy::Memory::ScreenHeight);
             if (texture_ == nullptr)
             {
                 throw std::runtime_error(SDL_GetError());
@@ -81,19 +79,9 @@ namespace
         Window(const Window &) = delete;
         Window &operator=(const Window &) = delete;
 
-        void Present(std::uint32_t frame)
+        void Present(const mintboy::Memory::Framebuffer &pixels)
         {
-            std::array<std::uint32_t, ScreenWidth * ScreenHeight> pixels{};
-            for (int y = 0; y < ScreenHeight; ++y)
-            {
-                for (int x = 0; x < ScreenWidth; ++x)
-                {
-                    const bool stripe = ((x / 8) + (y / 8) + static_cast<int>(frame / 20)) % 2 == 0;
-                    pixels[y * ScreenWidth + x] = stripe ? 0xFF9BBC0F : 0xFF8BAC0F;
-                }
-            }
-
-            SDL_UpdateTexture(texture_, nullptr, pixels.data(), ScreenWidth * static_cast<int>(sizeof(std::uint32_t)));
+            SDL_UpdateTexture(texture_, nullptr, pixels.data(), mintboy::Memory::ScreenWidth * static_cast<int>(sizeof(std::uint32_t)));
             SDL_RenderClear(renderer_);
             SDL_RenderCopy(renderer_, texture_, nullptr, nullptr);
             SDL_RenderPresent(renderer_);
@@ -149,7 +137,6 @@ int main(int argc, char **argv)
 
         bool running = true;
         bool cpu_running = true;
-        std::uint32_t frame = 0;
         while (running)
         {
             running = !PollQuit();
@@ -169,7 +156,7 @@ int main(int argc, char **argv)
                 }
             }
 
-            window.Present(frame++);
+            window.Present(memory.GetFramebuffer());
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }

@@ -79,6 +79,11 @@ namespace mintboy
         return 0xFF;
     }
 
+    const Memory::Framebuffer &Memory::GetFramebuffer() const
+    {
+        return framebuffer_;
+    }
+
     void Memory::WriteByte(Word address, Byte value)
     {
         if (address <= 0x7FFF)
@@ -267,6 +272,10 @@ namespace mintboy
                 ly = 0;
                 SetPpuMode(2);
             }
+            else if (ly < 144)
+            {
+                RenderScanline(ly);
+            }
 
             UpdateLyCompareFlag();
         }
@@ -296,6 +305,22 @@ namespace mintboy
     {
         Byte &status = io_registers_[LcdStatusAddress - 0xFF00];
         status = static_cast<Byte>((status & 0xFC) | (mode & 0x03));
+    }
+
+    void Memory::RenderScanline(Byte y)
+    {
+        constexpr std::array<std::uint32_t, 4> palette = {
+            0xFF9BBC0F,
+            0xFF8BAC0F,
+            0xFF306230,
+            0xFF0F380F,
+        };
+
+        for (int x = 0; x < ScreenWidth; ++x)
+        {
+            const auto shade = static_cast<std::size_t>(((x / 8) + (y / 8)) & 0x03);
+            framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = palette[shade];
+        }
     }
 
     void Memory::RequestInterrupt(Byte bit)
