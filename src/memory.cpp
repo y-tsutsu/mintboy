@@ -20,9 +20,14 @@ namespace mintboy
         constexpr Word ObjectPalette0Address = 0xFF48;
         constexpr Word ObjectPalette1Address = 0xFF49;
         constexpr Byte VBlankInterruptBit = 0x01;
+        constexpr Byte LcdStatInterruptBit = 0x02;
         constexpr Byte TimerInterruptBit = 0x04;
         constexpr Byte LcdEnabledBit = 0x80;
         constexpr Byte LyCompareFlag = 0x04;
+        constexpr Byte HBlankStatInterruptEnable = 0x08;
+        constexpr Byte VBlankStatInterruptEnable = 0x10;
+        constexpr Byte OamStatInterruptEnable = 0x20;
+        constexpr Byte LycStatInterruptEnable = 0x40;
     }
 
     Memory::Memory(Cartridge &cartridge)
@@ -163,6 +168,7 @@ namespace mintboy
             if (address == LcdStatusAddress)
             {
                 io_registers_[LcdStatusAddress - 0xFF00] = static_cast<Byte>((value & 0x78) | (io_registers_[LcdStatusAddress - 0xFF00] & 0x07));
+                UpdateLyCompareFlag();
                 return;
             }
 
@@ -317,7 +323,28 @@ namespace mintboy
     void Memory::SetPpuMode(Byte mode)
     {
         Byte &status = io_registers_[LcdStatusAddress - 0xFF00];
+        const Byte previous_mode = static_cast<Byte>(status & 0x03);
         status = static_cast<Byte>((status & 0xFC) | (mode & 0x03));
+
+        if (mode == previous_mode)
+        {
+            return;
+        }
+
+        switch (mode)
+        {
+        case 0:
+            RequestStatInterrupt(HBlankStatInterruptEnable);
+            break;
+        case 1:
+            RequestStatInterrupt(VBlankStatInterruptEnable);
+            break;
+        case 2:
+            RequestStatInterrupt(OamStatInterruptEnable);
+            break;
+        default:
+            break;
+        }
     }
 
     void Memory::RenderScanline(Byte y)
@@ -462,10 +489,19 @@ namespace mintboy
         io_registers_[InterruptFlagAddress - 0xFF00] |= bit;
     }
 
+    void Memory::RequestStatInterrupt(Byte source_bit)
+    {
+        if ((io_registers_[LcdStatusAddress - 0xFF00] & source_bit) != 0)
+        {
+            RequestInterrupt(LcdStatInterruptBit);
+        }
+    }
+
     void Memory::UpdateLyCompareFlag()
     {
         Byte &status = io_registers_[LcdStatusAddress - 0xFF00];
         const bool match = io_registers_[LyAddress - 0xFF00] == io_registers_[LycAddress - 0xFF00];
+        const bool was_match = (status & LyCompareFlag) != 0;
         if (match)
         {
             status |= LyCompareFlag;
@@ -473,6 +509,11 @@ namespace mintboy
         else
         {
             status &= static_cast<Byte>(~LyCompareFlag);
+        }
+
+        if (match && !was_match)
+        {
+            RequestStatInterrupt(LycStatInterruptEnable);
         }
     }
 }

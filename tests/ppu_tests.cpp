@@ -84,6 +84,44 @@ MINTBOY_TEST(ppu_sets_lyc_compare_flag)
     MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x04) != 0);
 }
 
+MINTBOY_TEST(ppu_requests_stat_interrupt_on_lyc_match)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF41, 0x40);
+    memory.WriteByte(0xFF45, 1);
+    memory.WriteByte(0xFF40, 0x80);
+    memory.Tick(456);
+
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x04) != 0);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x02) != 0);
+}
+
+MINTBOY_TEST(ppu_requests_stat_interrupt_on_mode_transitions)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF41, 0x38);
+    memory.WriteByte(0xFF40, 0x80);
+
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x02) != 0);
+
+    memory.WriteByte(0xFF0F, 0);
+    memory.Tick(80);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x02) == 0);
+
+    memory.Tick(172);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 0);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x02) != 0);
+
+    memory.WriteByte(0xFF0F, 0);
+    memory.Tick((456 * 143) + 204);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 1);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x02) != 0);
+}
+
 MINTBOY_TEST(ppu_renders_placeholder_scanline_into_framebuffer)
 {
     mintboy::Cartridge cartridge = MakeCartridge();

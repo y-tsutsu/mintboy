@@ -31,6 +31,7 @@ namespace mintboy
         [[nodiscard]] std::uint32_t MapPaletteColor(Byte palette_value, Byte color_index) const;
         void StartDmaTransfer(Byte source_high);
         void SetPpuMode(Byte mode);
+        void RequestStatInterrupt(Byte source_bit);
         void RequestInterrupt(Byte bit);
         void UpdateLyCompareFlag();
 
