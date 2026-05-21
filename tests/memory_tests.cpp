@@ -32,11 +32,39 @@ MINTBOY_TEST(memory_stores_oam_and_io_registers)
 
     memory.WriteByte(0xFE00, 0x56);
     memory.WriteByte(0xFE9F, 0x78);
-    memory.WriteByte(0xFF00, 0x9A);
     memory.WriteByte(0xFF7F, 0xBC);
 
     MINTBOY_REQUIRE(memory.ReadByte(0xFE00) == 0x56);
     MINTBOY_REQUIRE(memory.ReadByte(0xFE9F) == 0x78);
-    MINTBOY_REQUIRE(memory.ReadByte(0xFF00) == 0x9A);
     MINTBOY_REQUIRE(memory.ReadByte(0xFF7F) == 0xBC);
+}
+
+MINTBOY_TEST(memory_reads_joypad_direction_buttons)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF00, 0x20);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF00) & 0x0F) == 0x0F);
+
+    memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, true);
+    memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, true);
+
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF00) & 0x0F) == 0x06);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x10) != 0);
+
+    memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, false);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF00) & 0x0F) == 0x07);
+}
+
+MINTBOY_TEST(memory_reads_joypad_action_buttons)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF00, 0x10);
+    memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, true);
+    memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, true);
+
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF00) & 0x0F) == 0x06);
 }

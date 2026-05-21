@@ -4,6 +4,7 @@ namespace mintboy
 {
     namespace
     {
+        constexpr Word JoypadAddress = 0xFF00;
         constexpr Word DividerAddress = 0xFF04;
         constexpr Word TimerCounterAddress = 0xFF05;
         constexpr Word TimerModuloAddress = 0xFF06;
@@ -66,6 +67,11 @@ namespace mintboy
 
         if (address >= 0xFF00 && address <= 0xFF7F)
         {
+            if (address == JoypadAddress)
+            {
+                return ReadJoypad();
+            }
+
             if (address == TimerControlAddress)
             {
                 return static_cast<Byte>(io_registers_[address - 0xFF00] | 0xF8);
@@ -131,6 +137,12 @@ namespace mintboy
 
         if (address >= 0xFF00 && address <= 0xFF7F)
         {
+            if (address == JoypadAddress)
+            {
+                io_registers_[JoypadAddress - 0xFF00] = static_cast<Byte>(value & 0x30);
+                return;
+            }
+
             if (address == DividerAddress)
             {
                 io_registers_[DividerAddress - 0xFF00] = 0;
@@ -210,6 +222,43 @@ namespace mintboy
         {
             interrupt_enable_ = value;
         }
+    }
+
+    void Memory::SetJoypadButton(JoypadButton button, bool pressed)
+    {
+        const Byte mask = static_cast<Byte>(1 << static_cast<Byte>(button));
+        const bool was_pressed = (joypad_buttons_ & mask) != 0;
+        if (pressed)
+        {
+            joypad_buttons_ |= mask;
+        }
+        else
+        {
+            joypad_buttons_ &= static_cast<Byte>(~mask);
+        }
+
+        if (pressed && !was_pressed)
+        {
+            RequestInterrupt(0x10);
+        }
+    }
+
+    Byte Memory::ReadJoypad() const
+    {
+        const Byte select = static_cast<Byte>(io_registers_[JoypadAddress - 0xFF00] & 0x30);
+        Byte low_nibble = 0x0F;
+
+        if ((select & 0x10) == 0)
+        {
+            low_nibble &= static_cast<Byte>(~(joypad_buttons_ & 0x0F));
+        }
+
+        if ((select & 0x20) == 0)
+        {
+            low_nibble &= static_cast<Byte>(~((joypad_buttons_ >> 4) & 0x0F));
+        }
+
+        return static_cast<Byte>(0xC0 | select | low_nibble);
     }
 
     void Memory::Tick(int cycles)

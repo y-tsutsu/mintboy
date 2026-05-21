@@ -11,6 +11,18 @@ namespace mintboy
     class Memory
     {
     public:
+        enum class JoypadButton : Byte
+        {
+            Right = 0,
+            Left = 1,
+            Up = 2,
+            Down = 3,
+            A = 4,
+            B = 5,
+            Select = 6,
+            Start = 7,
+        };
+
         static constexpr int ScreenWidth = 160;
         static constexpr int ScreenHeight = 144;
         using Framebuffer = std::array<std::uint32_t, ScreenWidth * ScreenHeight>;
@@ -19,10 +31,12 @@ namespace mintboy
 
         [[nodiscard]] Byte ReadByte(Word address) const;
         [[nodiscard]] const Framebuffer &GetFramebuffer() const;
+        void SetJoypadButton(JoypadButton button, bool pressed);
         void WriteByte(Word address, Byte value);
         void Tick(int cycles);
 
     private:
+        [[nodiscard]] Byte ReadJoypad() const;
         [[nodiscard]] int TimerPeriodCycles() const;
         void TickTimer(int cycles);
         void TickPpu(int cycles);
@@ -43,6 +57,7 @@ namespace mintboy
         std::array<Byte, 0x7F> high_ram_{};
         Framebuffer framebuffer_{};
         Byte interrupt_enable_ = 0;
+        Byte joypad_buttons_ = 0;
         int divider_cycles_ = 0;
         int timer_cycles_ = 0;
         int ppu_cycles_ = 0;
