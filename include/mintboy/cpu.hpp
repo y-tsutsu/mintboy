@@ -53,6 +53,12 @@ namespace mintboy
         void PushWord(Word value);
         Word PopWord();
 
+        Byte ReadRegisterByIndex(Byte index) const;
+        void WriteRegisterByIndex(Byte index, Byte value);
+        void IncrementRegisterByIndex(Byte index);
+        void DecrementRegisterByIndex(Byte index);
+        void ExecuteAlu(Byte operation, Byte value);
+
         [[nodiscard]] bool GetFlag(Byte flag) const;
         void SetFlag(Byte flag, bool enabled);
 
