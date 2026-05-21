@@ -183,6 +183,16 @@ namespace mintboy
         case 0x06: // LD B,d8
             registers_.b = FetchByte();
             return 8;
+        case 0x07: // RLCA
+        {
+            const bool carry = (registers_.a & 0x80) != 0;
+            registers_.a = static_cast<Byte>((registers_.a << 1) | (carry ? 1 : 0));
+            SetFlag(Registers::ZeroFlag, false);
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, false);
+            SetFlag(Registers::CarryFlag, carry);
+            return 4;
+        }
         case 0x08: // LD (a16),SP
         {
             const Word address = FetchWord();
@@ -250,6 +260,17 @@ namespace mintboy
         case 0x16: // LD D,d8
             registers_.d = FetchByte();
             return 8;
+        case 0x17: // RLA
+        {
+            const bool old_carry = GetFlag(Registers::CarryFlag);
+            const bool new_carry = (registers_.a & 0x80) != 0;
+            registers_.a = static_cast<Byte>((registers_.a << 1) | (old_carry ? 1 : 0));
+            SetFlag(Registers::ZeroFlag, false);
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, false);
+            SetFlag(Registers::CarryFlag, new_carry);
+            return 4;
+        }
         case 0x19: // ADD HL,DE
         {
             const Word hl = registers_.HL();
