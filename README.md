@@ -15,8 +15,8 @@ The current codebase has the first core pieces in place:
 Install the SDL2 development package:
 
 ```sh
-sudo apt-get update
-sudo apt-get install -y libsdl2-dev
+sudo apt update
+sudo apt install -y libsdl2-dev
 ```
 
 Then build and run tests:
