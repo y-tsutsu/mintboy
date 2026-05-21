@@ -126,6 +126,7 @@ namespace mintboy
             return 4;
         }
 
+        const Word opcode_address = registers_.pc;
         const Byte opcode = FetchByte();
 
         if (opcode >= 0x40 && opcode <= 0x7F)
@@ -638,6 +639,9 @@ namespace mintboy
             PushWord(registers_.pc);
             registers_.pc = 0x0020;
             return 16;
+        case 0xE9: // JP (HL)
+            registers_.pc = registers_.HL();
+            return 4;
         case 0xEA: // LD (a16),A
             memory_.WriteByte(FetchWord(), registers_.a);
             return 16;
@@ -697,7 +701,7 @@ namespace mintboy
             ExecuteAlu(7, FetchByte());
             return 8;
         default:
-            throw std::runtime_error(std::format("unimplemented CPU opcode: 0x{:02X}", opcode));
+            throw std::runtime_error(std::format("unimplemented CPU opcode: 0x{:02X} at PC=0x{:04X}", opcode, opcode_address));
         }
     }
 

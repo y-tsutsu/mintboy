@@ -55,6 +55,22 @@ MINTBOY_TEST(cpu_executes_absolute_jump)
     MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x1234);
 }
 
+MINTBOY_TEST(cpu_executes_hl_jump)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x21,
+        0x34,
+        0x12,
+        0xE9,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 12);
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x1234);
+}
+
 MINTBOY_TEST(cpu_loads_16bit_register_pairs)
 {
     mintboy::Cartridge cartridge = MakeRom({
