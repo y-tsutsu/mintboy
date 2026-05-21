@@ -185,7 +185,7 @@ int main(int argc, char **argv)
             running = !PollEvents(memory);
 
             int cycles = 0;
-            while (cycles < CyclesPerFrame && cpu_running && !cpu.IsHalted())
+            while (cycles < CyclesPerFrame && cpu_running)
             {
                 try
                 {
