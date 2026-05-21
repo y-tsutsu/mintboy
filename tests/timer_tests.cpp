@@ -79,3 +79,76 @@ MINTBOY_TEST(cpu_step_advances_timer)
     MINTBOY_REQUIRE(cpu.Step() == 4);
     MINTBOY_REQUIRE(memory.ReadByte(0xFF05) == 1);
 }
+
+MINTBOY_TEST(cpu_services_timer_interrupt_when_ime_is_enabled)
+{
+    std::vector<mintboy::Byte> rom(0x8000, 0);
+    rom[0x0100] = 0xFB;
+    rom[0x0101] = 0x00;
+    rom[0x0102] = 0x00;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    memory.WriteByte(0xFFFF, 0x04);
+    memory.WriteByte(0xFF0F, 0x04);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(!cpu.IsInterruptMasterEnabled());
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.IsInterruptMasterEnabled());
+
+    MINTBOY_REQUIRE(cpu.Step() == 20);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0050);
+    MINTBOY_REQUIRE(cpu.GetRegisters().sp == 0xFFFC);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF0F) & 0x04) == 0);
+}
+
+MINTBOY_TEST(cpu_reti_reenables_ime)
+{
+    std::vector<mintboy::Byte> rom(0x8000, 0);
+    rom[0x0040] = 0xD9;
+    rom[0x0100] = 0xFB;
+    rom[0x0101] = 0x00;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    memory.WriteByte(0xFFFF, 0x01);
+    memory.WriteByte(0xFF0F, 0x01);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.Step() == 20);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0040);
+    MINTBOY_REQUIRE(!cpu.IsInterruptMasterEnabled());
+
+    MINTBOY_REQUIRE(cpu.Step() == 16);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0102);
+    MINTBOY_REQUIRE(cpu.IsInterruptMasterEnabled());
+}
+
+MINTBOY_TEST(cpu_halt_wakes_when_interrupt_is_pending)
+{
+    std::vector<mintboy::Byte> rom(0x8000, 0);
+    rom[0x0100] = 0x76;
+    rom[0x0101] = 0x3E;
+    rom[0x0102] = 0x42;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.IsHalted());
+
+    memory.WriteByte(0xFFFF, 0x01);
+    memory.WriteByte(0xFF0F, 0x01);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(!cpu.IsHalted());
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x42);
+}

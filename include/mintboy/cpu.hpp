@@ -44,11 +44,14 @@ namespace mintboy
         [[nodiscard]] const Registers &GetRegisters() const;
         [[nodiscard]] bool IsHalted() const;
         [[nodiscard]] bool IsStopped() const;
+        [[nodiscard]] bool IsInterruptMasterEnabled() const;
 
         int Step();
 
     private:
         int ExecuteInstruction();
+        [[nodiscard]] Byte PendingInterrupts() const;
+        [[nodiscard]] int ServiceInterrupt();
 
         Byte FetchByte();
         Word FetchWord();
@@ -70,5 +73,7 @@ namespace mintboy
         Registers registers_{};
         bool halted_ = false;
         bool stopped_ = false;
+        bool interrupt_master_enabled_ = false;
+        bool enable_interrupts_after_next_instruction_ = false;
     };
 }

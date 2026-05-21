@@ -8,6 +8,9 @@ namespace mintboy
 {
     namespace
     {
+        constexpr Word InterruptFlagAddress = 0xFF0F;
+        constexpr Word InterruptEnableAddress = 0xFFFF;
+
         constexpr bool IsHalfCarryAdd(Byte lhs, Byte rhs)
         {
             return ((lhs & 0x0F) + (rhs & 0x0F)) > 0x0F;
@@ -83,9 +86,35 @@ namespace mintboy
         return stopped_;
     }
 
+    bool Cpu::IsInterruptMasterEnabled() const
+    {
+        return interrupt_master_enabled_;
+    }
+
     int Cpu::Step()
     {
+        if (PendingInterrupts() != 0)
+        {
+            halted_ = false;
+            stopped_ = false;
+        }
+
+        if (interrupt_master_enabled_ && PendingInterrupts() != 0)
+        {
+            const int cycles = ServiceInterrupt();
+            memory_.Tick(cycles);
+            return cycles;
+        }
+
+        const bool enable_interrupts = enable_interrupts_after_next_instruction_;
+        enable_interrupts_after_next_instruction_ = false;
+
         const int cycles = ExecuteInstruction();
+        if (enable_interrupts)
+        {
+            interrupt_master_enabled_ = true;
+        }
+
         memory_.Tick(cycles);
         return cycles;
     }
@@ -584,6 +613,7 @@ namespace mintboy
         }
         case 0xD9: // RETI
             registers_.pc = PopWord();
+            interrupt_master_enabled_ = true;
             return 16;
         case 0xDF: // RST 18H
             PushWord(registers_.pc);
@@ -622,6 +652,8 @@ namespace mintboy
             registers_.a = memory_.ReadByte(static_cast<Word>(0xFF00 + FetchByte()));
             return 12;
         case 0xF3: // DI
+            interrupt_master_enabled_ = false;
+            enable_interrupts_after_next_instruction_ = false;
             return 4;
         case 0xF5: // PUSH AF
             PushWord(registers_.AF());
@@ -652,6 +684,7 @@ namespace mintboy
             registers_.a = memory_.ReadByte(FetchWord());
             return 16;
         case 0xFB: // EI
+            enable_interrupts_after_next_instruction_ = true;
             return 4;
         case 0xEE: // XOR d8
             ExecuteAlu(5, FetchByte());
@@ -673,6 +706,39 @@ namespace mintboy
         const Byte value = memory_.ReadByte(registers_.pc);
         ++registers_.pc;
         return value;
+    }
+
+    Byte Cpu::PendingInterrupts() const
+    {
+        return static_cast<Byte>(memory_.ReadByte(InterruptEnableAddress) & memory_.ReadByte(InterruptFlagAddress) & 0x1F);
+    }
+
+    int Cpu::ServiceInterrupt()
+    {
+        const Byte pending = PendingInterrupts();
+        Word vector = 0;
+        Byte interrupt_bit = 0;
+
+        for (Byte bit = 0; bit < 5; ++bit)
+        {
+            const Byte mask = static_cast<Byte>(1 << bit);
+            if ((pending & mask) != 0)
+            {
+                interrupt_bit = mask;
+                vector = static_cast<Word>(0x0040 + (bit * 0x0008));
+                break;
+            }
+        }
+
+        interrupt_master_enabled_ = false;
+        enable_interrupts_after_next_instruction_ = false;
+        halted_ = false;
+        stopped_ = false;
+
+        memory_.WriteByte(InterruptFlagAddress, static_cast<Byte>(memory_.ReadByte(InterruptFlagAddress) & ~interrupt_bit));
+        PushWord(registers_.pc);
+        registers_.pc = vector;
+        return 20;
     }
 
     Word Cpu::FetchWord()
