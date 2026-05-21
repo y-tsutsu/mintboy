@@ -93,7 +93,40 @@ namespace
         SDL_Texture *texture_ = nullptr;
     };
 
-    bool PollQuit()
+    void UpdateJoypad(mintboy::Memory &memory, SDL_Keycode key, bool pressed)
+    {
+        switch (key)
+        {
+        case SDLK_RIGHT:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, pressed);
+            break;
+        case SDLK_LEFT:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, pressed);
+            break;
+        case SDLK_UP:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, pressed);
+            break;
+        case SDLK_DOWN:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, pressed);
+            break;
+        case SDLK_z:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, pressed);
+            break;
+        case SDLK_x:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, pressed);
+            break;
+        case SDLK_BACKSPACE:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, pressed);
+            break;
+        case SDLK_RETURN:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, pressed);
+            break;
+        default:
+            break;
+        }
+    }
+
+    bool PollEvents(mintboy::Memory &memory)
     {
         SDL_Event event{};
         while (SDL_PollEvent(&event) != 0)
@@ -106,6 +139,16 @@ namespace
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
             {
                 return true;
+            }
+
+            if (event.type == SDL_KEYDOWN && event.key.repeat == 0)
+            {
+                UpdateJoypad(memory, event.key.keysym.sym, true);
+            }
+
+            if (event.type == SDL_KEYUP)
+            {
+                UpdateJoypad(memory, event.key.keysym.sym, false);
             }
         }
 
@@ -139,7 +182,7 @@ int main(int argc, char **argv)
         bool cpu_running = true;
         while (running)
         {
-            running = !PollQuit();
+            running = !PollEvents(memory);
 
             int cycles = 0;
             while (cycles < CyclesPerFrame && cpu_running && !cpu.IsHalted())
