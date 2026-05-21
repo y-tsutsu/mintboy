@@ -118,3 +118,66 @@ MINTBOY_TEST(ppu_renders_background_tiles_from_vram)
     MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 7] == 0xFF8BAC0F);
     MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF9BBC0F);
 }
+
+MINTBOY_TEST(ppu_oam_dma_copies_160_bytes)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xC000, 0x11);
+    memory.WriteByte(0xC001, 0x22);
+    memory.WriteByte(0xC09F, 0x33);
+
+    memory.WriteByte(0xFF46, 0xC0);
+
+    MINTBOY_REQUIRE(memory.ReadByte(0xFE00) == 0x11);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFE01) == 0x22);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFE9F) == 0x33);
+}
+
+MINTBOY_TEST(ppu_renders_sprite_pixels_from_oam)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0x8000, 0x80);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0xFE00, 17);
+    memory.WriteByte(0xFE01, 8);
+    memory.WriteByte(0xFE02, 0);
+    memory.WriteByte(0xFE03, 0);
+    memory.WriteByte(0xFF48, 0xE4);
+    memory.WriteByte(0xFF40, 0x82);
+
+    memory.Tick(456);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 1] == 0xFF9BBC0F);
+}
+
+MINTBOY_TEST(ppu_respects_sprite_background_priority)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0x8000, 0xFF);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x8002, 0xFF);
+    memory.WriteByte(0x8003, 0x00);
+    memory.WriteByte(0x8010, 0x80);
+    memory.WriteByte(0x8011, 0x80);
+    memory.WriteByte(0x9800, 0);
+    memory.WriteByte(0xFE00, 17);
+    memory.WriteByte(0xFE01, 8);
+    memory.WriteByte(0xFE02, 1);
+    memory.WriteByte(0xFE03, 0x80);
+    memory.WriteByte(0xFF47, 0xE4);
+    memory.WriteByte(0xFF48, 0xE4);
+    memory.WriteByte(0xFF40, 0x93);
+
+    memory.Tick(456);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
+}

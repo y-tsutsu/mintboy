@@ -15,7 +15,10 @@ namespace mintboy
         constexpr Word ScrollXAddress = 0xFF43;
         constexpr Word LyAddress = 0xFF44;
         constexpr Word LycAddress = 0xFF45;
+        constexpr Word DmaAddress = 0xFF46;
         constexpr Word BgPaletteAddress = 0xFF47;
+        constexpr Word ObjectPalette0Address = 0xFF48;
+        constexpr Word ObjectPalette1Address = 0xFF49;
         constexpr Byte VBlankInterruptBit = 0x01;
         constexpr Byte TimerInterruptBit = 0x04;
         constexpr Byte LcdEnabledBit = 0x80;
@@ -178,6 +181,13 @@ namespace mintboy
                 return;
             }
 
+            if (address == DmaAddress)
+            {
+                io_registers_[DmaAddress - 0xFF00] = value;
+                StartDmaTransfer(value);
+                return;
+            }
+
             io_registers_[address - 0xFF00] = value;
             return;
         }
@@ -312,21 +322,17 @@ namespace mintboy
 
     void Memory::RenderScanline(Byte y)
     {
-        constexpr std::array<std::uint32_t, 4> palette = {
-            0xFF9BBC0F,
-            0xFF8BAC0F,
-            0xFF306230,
-            0xFF0F380F,
-        };
-
         const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
         const bool bg_enabled = (lcd_control & 0x01) != 0;
+        std::array<Byte, ScreenWidth> background_color_indices{};
+
         if (!bg_enabled)
         {
             for (int x = 0; x < ScreenWidth; ++x)
             {
-                framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = palette[0];
+                framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = MapPaletteColor(0xE4, 0);
             }
+            RenderSprites(y, background_color_indices);
             return;
         }
 
@@ -352,7 +358,102 @@ namespace mintboy
             const int bit = 7 - (bg_x % 8);
             const Byte color_index = static_cast<Byte>(((high >> bit) & 0x01) << 1 | ((low >> bit) & 0x01));
             const Byte palette_index = static_cast<Byte>((bg_palette >> (color_index * 2)) & 0x03);
-            framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = palette[palette_index];
+            background_color_indices[x] = color_index;
+            framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = MapPaletteColor(0xE4, palette_index);
+        }
+
+        RenderSprites(y, background_color_indices);
+    }
+
+    void Memory::RenderSprites(Byte y, std::array<Byte, ScreenWidth> &background_color_indices)
+    {
+        const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
+        if ((lcd_control & 0x02) == 0)
+        {
+            return;
+        }
+
+        const int sprite_height = (lcd_control & 0x04) != 0 ? 16 : 8;
+        int rendered_sprites = 0;
+        for (std::size_t sprite = 0; sprite < 40 && rendered_sprites < 10; ++sprite)
+        {
+            const std::size_t base = sprite * 4;
+            const int sprite_y = static_cast<int>(oam_[base]) - 16;
+            const int sprite_x = static_cast<int>(oam_[base + 1]) - 8;
+            Byte tile_index = oam_[base + 2];
+            const Byte attributes = oam_[base + 3];
+
+            if (static_cast<int>(y) < sprite_y || static_cast<int>(y) >= sprite_y + sprite_height)
+            {
+                continue;
+            }
+
+            ++rendered_sprites;
+            const bool behind_background = (attributes & 0x80) != 0;
+            const bool y_flip = (attributes & 0x40) != 0;
+            const bool x_flip = (attributes & 0x20) != 0;
+            const Byte palette_value = (attributes & 0x10) != 0
+                                           ? io_registers_[ObjectPalette1Address - 0xFF00]
+                                           : io_registers_[ObjectPalette0Address - 0xFF00];
+
+            int tile_line = static_cast<int>(y) - sprite_y;
+            if (y_flip)
+            {
+                tile_line = sprite_height - 1 - tile_line;
+            }
+
+            if (sprite_height == 16)
+            {
+                tile_index = static_cast<Byte>(tile_index & 0xFE);
+            }
+
+            const std::size_t tile_data_offset = static_cast<std::size_t>(tile_index) * 16 + static_cast<std::size_t>(tile_line) * 2;
+            const Byte low = video_ram_[tile_data_offset];
+            const Byte high = video_ram_[tile_data_offset + 1];
+
+            for (int pixel = 0; pixel < 8; ++pixel)
+            {
+                const int screen_x = sprite_x + pixel;
+                if (screen_x < 0 || screen_x >= ScreenWidth)
+                {
+                    continue;
+                }
+
+                const int bit = x_flip ? pixel : 7 - pixel;
+                const Byte color_index = static_cast<Byte>(((high >> bit) & 0x01) << 1 | ((low >> bit) & 0x01));
+                if (color_index == 0)
+                {
+                    continue;
+                }
+
+                if (behind_background && background_color_indices[screen_x] != 0)
+                {
+                    continue;
+                }
+
+                framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + screen_x] = MapPaletteColor(palette_value, color_index);
+            }
+        }
+    }
+
+    std::uint32_t Memory::MapPaletteColor(Byte palette_value, Byte color_index) const
+    {
+        constexpr std::array<std::uint32_t, 4> palette = {
+            0xFF9BBC0F,
+            0xFF8BAC0F,
+            0xFF306230,
+            0xFF0F380F,
+        };
+        const Byte palette_index = static_cast<Byte>((palette_value >> (color_index * 2)) & 0x03);
+        return palette[palette_index];
+    }
+
+    void Memory::StartDmaTransfer(Byte source_high)
+    {
+        const Word source = static_cast<Word>(source_high << 8);
+        for (Word offset = 0; offset < 0x00A0; ++offset)
+        {
+            oam_[offset] = ReadByte(static_cast<Word>(source + offset));
         }
     }
 

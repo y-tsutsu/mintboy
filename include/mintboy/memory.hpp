@@ -27,6 +27,9 @@ namespace mintboy
         void TickTimer(int cycles);
         void TickPpu(int cycles);
         void RenderScanline(Byte y);
+        void RenderSprites(Byte y, std::array<Byte, ScreenWidth> &background_color_indices);
+        [[nodiscard]] std::uint32_t MapPaletteColor(Byte palette_value, Byte color_index) const;
+        void StartDmaTransfer(Byte source_high);
         void SetPpuMode(Byte mode);
         void RequestInterrupt(Byte bit);
         void UpdateLyCompareFlag();
