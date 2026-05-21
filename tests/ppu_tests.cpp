@@ -157,6 +157,59 @@ MINTBOY_TEST(ppu_renders_background_tiles_from_vram)
     MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF9BBC0F);
 }
 
+MINTBOY_TEST(ppu_renders_window_tiles_over_background)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0x8000, 0x00);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x8010, 0xFF);
+    memory.WriteByte(0x8011, 0x00);
+    memory.WriteByte(0x8012, 0xFF);
+    memory.WriteByte(0x8013, 0x00);
+    memory.WriteByte(0x9800, 0x00);
+    memory.WriteByte(0x9C00, 0x01);
+    memory.WriteByte(0x9C01, 0x01);
+    memory.WriteByte(0xFF47, 0xE4);
+    memory.WriteByte(0xFF4A, 1);
+    memory.WriteByte(0xFF4B, 7);
+    memory.WriteByte(0xFF40, 0xF1);
+
+    memory.Tick(456);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF8BAC0F);
+}
+
+MINTBOY_TEST(ppu_does_not_render_window_before_wy_or_wx)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0x8000, 0x00);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x8010, 0xFF);
+    memory.WriteByte(0x8011, 0x00);
+    memory.WriteByte(0x9800, 0x00);
+    memory.WriteByte(0x9C00, 0x01);
+    memory.WriteByte(0xFF47, 0xE4);
+    memory.WriteByte(0xFF4A, 2);
+    memory.WriteByte(0xFF4B, 15);
+    memory.WriteByte(0xFF40, 0xF1);
+
+    memory.Tick(456);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF9BBC0F);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF9BBC0F);
+
+    memory.Tick(456);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth * 2 + 7] == 0xFF9BBC0F);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth * 2 + 8] == 0xFF8BAC0F);
+}
+
 MINTBOY_TEST(ppu_oam_dma_copies_160_bytes)
 {
     mintboy::Cartridge cartridge = MakeCartridge();
