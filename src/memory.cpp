@@ -14,6 +14,11 @@ namespace mintboy
             return cartridge_.Read(address);
         }
 
+        if (address >= 0x8000 && address <= 0x9FFF)
+        {
+            return video_ram_[address - 0x8000];
+        }
+
         if (address >= 0xC000 && address <= 0xDFFF)
         {
             return work_ram_[address - 0xC000];
@@ -22,6 +27,16 @@ namespace mintboy
         if (address >= 0xE000 && address <= 0xFDFF)
         {
             return work_ram_[address - 0xE000];
+        }
+
+        if (address >= 0xFE00 && address <= 0xFE9F)
+        {
+            return oam_[address - 0xFE00];
+        }
+
+        if (address >= 0xFF00 && address <= 0xFF7F)
+        {
+            return io_registers_[address - 0xFF00];
         }
 
         if (address >= 0xFF80 && address <= 0xFFFE)
@@ -45,6 +60,12 @@ namespace mintboy
             return;
         }
 
+        if (address >= 0x8000 && address <= 0x9FFF)
+        {
+            video_ram_[address - 0x8000] = value;
+            return;
+        }
+
         if (address >= 0xC000 && address <= 0xDFFF)
         {
             work_ram_[address - 0xC000] = value;
@@ -54,6 +75,18 @@ namespace mintboy
         if (address >= 0xE000 && address <= 0xFDFF)
         {
             work_ram_[address - 0xE000] = value;
+            return;
+        }
+
+        if (address >= 0xFE00 && address <= 0xFE9F)
+        {
+            oam_[address - 0xFE00] = value;
+            return;
+        }
+
+        if (address >= 0xFF00 && address <= 0xFF7F)
+        {
+            io_registers_[address - 0xFF00] = value;
             return;
         }
 

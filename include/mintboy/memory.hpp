@@ -17,7 +17,10 @@ namespace mintboy
 
     private:
         Cartridge &cartridge_;
+        std::array<Byte, 0x2000> video_ram_{};
         std::array<Byte, 0x2000> work_ram_{};
+        std::array<Byte, 0xA0> oam_{};
+        std::array<Byte, 0x80> io_registers_{};
         std::array<Byte, 0x7F> high_ram_{};
         Byte interrupt_enable_ = 0;
     };
