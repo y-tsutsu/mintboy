@@ -137,7 +137,7 @@ int main(int argc, char **argv)
 
     try
     {
-        const mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(argv[1]);
+        mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(argv[1]);
         mintboy::Memory memory(cartridge);
         mintboy::Cpu cpu(memory);
 

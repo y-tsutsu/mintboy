@@ -18,7 +18,7 @@ namespace
 
 MINTBOY_TEST(cpu_executes_immediate_loads)
 {
-    const mintboy::Cartridge cartridge = MakeRom({
+    mintboy::Cartridge cartridge = MakeRom({
         0x3E,
         0x42,
         0x06,
@@ -42,7 +42,7 @@ MINTBOY_TEST(cpu_executes_immediate_loads)
 
 MINTBOY_TEST(cpu_executes_absolute_jump)
 {
-    const mintboy::Cartridge cartridge = MakeRom({
+    mintboy::Cartridge cartridge = MakeRom({
         0xC3,
         0x34,
         0x12,

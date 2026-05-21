@@ -2,7 +2,7 @@
 
 namespace mintboy
 {
-    Memory::Memory(const Cartridge &cartridge)
+    Memory::Memory(Cartridge &cartridge)
         : cartridge_(cartridge)
     {
     }
@@ -39,6 +39,12 @@ namespace mintboy
 
     void Memory::WriteByte(Word address, Byte value)
     {
+        if (address <= 0x7FFF)
+        {
+            cartridge_.Write(address, value);
+            return;
+        }
+
         if (address >= 0xC000 && address <= 0xDFFF)
         {
             work_ram_[address - 0xC000] = value;
