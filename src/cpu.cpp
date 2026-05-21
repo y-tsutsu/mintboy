@@ -444,6 +444,8 @@ namespace mintboy
             }
             return 12;
         }
+        case 0xCB: // CB prefix
+            return ExecuteCb(FetchByte());
         case 0xCD: // CALL a16
         {
             const Word address = FetchWord();
@@ -769,6 +771,88 @@ namespace mintboy
         default:
             throw std::logic_error("invalid ALU operation");
         }
+    }
+
+    int Cpu::ExecuteCb(Byte opcode)
+    {
+        const Byte group = static_cast<Byte>(opcode >> 6);
+        const Byte y = static_cast<Byte>((opcode >> 3) & 0x07);
+        const Byte z = static_cast<Byte>(opcode & 0x07);
+
+        if (group == 0)
+        {
+            const Byte value = ReadRegisterByIndex(z);
+            Byte result = 0;
+            bool carry = false;
+
+            switch (y)
+            {
+            case 0: // RLC r
+                carry = (value & 0x80) != 0;
+                result = static_cast<Byte>((value << 1) | (carry ? 1 : 0));
+                break;
+            case 1: // RRC r
+                carry = (value & 0x01) != 0;
+                result = static_cast<Byte>((value >> 1) | (carry ? 0x80 : 0));
+                break;
+            case 2: // RL r
+            {
+                const bool old_carry = GetFlag(Registers::CarryFlag);
+                carry = (value & 0x80) != 0;
+                result = static_cast<Byte>((value << 1) | (old_carry ? 1 : 0));
+                break;
+            }
+            case 3: // RR r
+            {
+                const bool old_carry = GetFlag(Registers::CarryFlag);
+                carry = (value & 0x01) != 0;
+                result = static_cast<Byte>((value >> 1) | (old_carry ? 0x80 : 0));
+                break;
+            }
+            case 4: // SLA r
+                carry = (value & 0x80) != 0;
+                result = static_cast<Byte>(value << 1);
+                break;
+            case 5: // SRA r
+                carry = (value & 0x01) != 0;
+                result = static_cast<Byte>((value >> 1) | (value & 0x80));
+                break;
+            case 6: // SWAP r
+                result = static_cast<Byte>((value << 4) | (value >> 4));
+                carry = false;
+                break;
+            case 7: // SRL r
+                carry = (value & 0x01) != 0;
+                result = static_cast<Byte>(value >> 1);
+                break;
+            default:
+                throw std::logic_error("invalid CB rotate operation");
+            }
+
+            WriteRegisterByIndex(z, result);
+            SetFlag(Registers::ZeroFlag, result == 0);
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, false);
+            SetFlag(Registers::CarryFlag, carry);
+            return z == 6 ? 16 : 8;
+        }
+
+        if (group == 1) // BIT b,r
+        {
+            const Byte value = ReadRegisterByIndex(z);
+            SetFlag(Registers::ZeroFlag, (value & (1 << y)) == 0);
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, true);
+            return z == 6 ? 12 : 8;
+        }
+
+        const Byte value = ReadRegisterByIndex(z);
+        const Byte mask = static_cast<Byte>(1 << y);
+        const Byte result = group == 2
+                                ? static_cast<Byte>(value & ~mask) // RES b,r
+                                : static_cast<Byte>(value | mask); // SET b,r
+        WriteRegisterByIndex(z, result);
+        return z == 6 ? 16 : 8;
     }
 
     bool Cpu::GetFlag(Byte flag) const

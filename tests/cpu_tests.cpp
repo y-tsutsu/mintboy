@@ -482,3 +482,119 @@ MINTBOY_TEST(cpu_executes_carry_condition_control_flow)
     MINTBOY_REQUIRE(cpu.Step() == 8);
     MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x42);
 }
+
+MINTBOY_TEST(cpu_executes_cb_rotate_shift_and_swap_registers)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x06,
+        0x81,
+        0xCB,
+        0x00,
+        0xCB,
+        0x38,
+        0x0E,
+        0x10,
+        0x37,
+        0xCB,
+        0x11,
+        0x16,
+        0xF0,
+        0xCB,
+        0x32,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().b == 0x03);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::CarryFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().b == 0x01);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::CarryFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().c == 0x21);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::CarryFlag) == 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().d == 0x0F);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::ZeroFlag) == 0);
+}
+
+MINTBOY_TEST(cpu_executes_cb_bit_res_set_registers)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x3E,
+        0x80,
+        0xCB,
+        0x7F,
+        0xCB,
+        0xBF,
+        0xCB,
+        0x7F,
+        0xCB,
+        0xC7,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::ZeroFlag) == 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::HalfCarryFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x00);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::ZeroFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x01);
+}
+
+MINTBOY_TEST(cpu_executes_cb_operations_on_hl_memory)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x21,
+        0x00,
+        0xC0,
+        0x36,
+        0x01,
+        0xCB,
+        0x06,
+        0xCB,
+        0x46,
+        0xCB,
+        0x86,
+        0xCB,
+        0xC6,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 12);
+    MINTBOY_REQUIRE(cpu.Step() == 12);
+    MINTBOY_REQUIRE(memory.ReadByte(0xC000) == 0x01);
+
+    MINTBOY_REQUIRE(cpu.Step() == 16);
+    MINTBOY_REQUIRE(memory.ReadByte(0xC000) == 0x02);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::CarryFlag) == 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 12);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::ZeroFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 16);
+    MINTBOY_REQUIRE(memory.ReadByte(0xC000) == 0x02);
+
+    MINTBOY_REQUIRE(cpu.Step() == 16);
+    MINTBOY_REQUIRE(memory.ReadByte(0xC000) == 0x03);
+}

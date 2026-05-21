@@ -58,6 +58,7 @@ namespace mintboy
         void IncrementRegisterByIndex(Byte index);
         void DecrementRegisterByIndex(Byte index);
         void ExecuteAlu(Byte operation, Byte value);
+        int ExecuteCb(Byte opcode);
 
         [[nodiscard]] bool GetFlag(Byte flag) const;
         void SetFlag(Byte flag, bool enabled);
