@@ -11,8 +11,11 @@ namespace mintboy
         constexpr Word InterruptFlagAddress = 0xFF0F;
         constexpr Word LcdControlAddress = 0xFF40;
         constexpr Word LcdStatusAddress = 0xFF41;
+        constexpr Word ScrollYAddress = 0xFF42;
+        constexpr Word ScrollXAddress = 0xFF43;
         constexpr Word LyAddress = 0xFF44;
         constexpr Word LycAddress = 0xFF45;
+        constexpr Word BgPaletteAddress = 0xFF47;
         constexpr Byte VBlankInterruptBit = 0x01;
         constexpr Byte TimerInterruptBit = 0x04;
         constexpr Byte LcdEnabledBit = 0x80;
@@ -316,10 +319,40 @@ namespace mintboy
             0xFF0F380F,
         };
 
+        const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
+        const bool bg_enabled = (lcd_control & 0x01) != 0;
+        if (!bg_enabled)
+        {
+            for (int x = 0; x < ScreenWidth; ++x)
+            {
+                framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = palette[0];
+            }
+            return;
+        }
+
+        const Word tile_map_base = (lcd_control & 0x08) != 0 ? 0x1C00 : 0x1800;
+        const bool unsigned_tile_index = (lcd_control & 0x10) != 0;
+        const Byte scroll_y = io_registers_[ScrollYAddress - 0xFF00];
+        const Byte scroll_x = io_registers_[ScrollXAddress - 0xFF00];
+        const Byte bg_palette = io_registers_[BgPaletteAddress - 0xFF00];
+
         for (int x = 0; x < ScreenWidth; ++x)
         {
-            const auto shade = static_cast<std::size_t>(((x / 8) + (y / 8)) & 0x03);
-            framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = palette[shade];
+            const Byte bg_x = static_cast<Byte>(x + scroll_x);
+            const Byte bg_y = static_cast<Byte>(y + scroll_y);
+            const std::size_t tile_column = bg_x / 8;
+            const std::size_t tile_row = bg_y / 8;
+            const Byte tile_index = video_ram_[tile_map_base + tile_row * 32 + tile_column];
+            const std::size_t tile_data_offset = unsigned_tile_index
+                                                     ? static_cast<std::size_t>(tile_index) * 16
+                                                     : static_cast<std::size_t>(0x1000 + static_cast<std::int8_t>(tile_index) * 16);
+            const std::size_t tile_line = bg_y % 8;
+            const Byte low = video_ram_[tile_data_offset + tile_line * 2];
+            const Byte high = video_ram_[tile_data_offset + tile_line * 2 + 1];
+            const int bit = 7 - (bg_x % 8);
+            const Byte color_index = static_cast<Byte>(((high >> bit) & 0x01) << 1 | ((low >> bit) & 0x01));
+            const Byte palette_index = static_cast<Byte>((bg_palette >> (color_index * 2)) & 0x03);
+            framebuffer_[static_cast<std::size_t>(y) * ScreenWidth + x] = palette[palette_index];
         }
     }
 

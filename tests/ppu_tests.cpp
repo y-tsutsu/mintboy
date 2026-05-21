@@ -94,5 +94,27 @@ MINTBOY_TEST(ppu_renders_placeholder_scanline_into_framebuffer)
 
     const auto &framebuffer = memory.GetFramebuffer();
     MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] != 0);
-    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] != framebuffer[mintboy::Memory::ScreenWidth + 24]);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == framebuffer[mintboy::Memory::ScreenWidth + 24]);
+}
+
+MINTBOY_TEST(ppu_renders_background_tiles_from_vram)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0x8000, 0xFF);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x8002, 0xFF);
+    memory.WriteByte(0x8003, 0x00);
+    memory.WriteByte(0x9800, 0x00);
+    memory.WriteByte(0x9801, 0x01);
+    memory.WriteByte(0xFF47, 0xE4);
+    memory.WriteByte(0xFF40, 0x91);
+
+    memory.Tick(456);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 7] == 0xFF8BAC0F);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth + 8] == 0xFF9BBC0F);
 }
