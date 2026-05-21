@@ -72,6 +72,7 @@ add_executable(mintboy_tests
     tests/cartridge_tests.cpp
     tests/cpu_tests.cpp
     tests/memory_tests.cpp
+    tests/timer_tests.cpp
     tests/test_main.cpp
 )
 
