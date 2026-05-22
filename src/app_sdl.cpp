@@ -34,10 +34,12 @@ namespace
             {
                 throw std::runtime_error(SDL_GetError());
             }
+            SDL_StartTextInput();
         }
 
         ~Sdl()
         {
+            SDL_StopTextInput();
             SDL_Quit();
         }
 
@@ -99,7 +101,13 @@ namespace
         SDL_Texture *texture_ = nullptr;
     };
 
-    void SyncJoypad(mintboy::Memory &memory)
+    struct InputPulse
+    {
+        int a_frames = 0;
+        int b_frames = 0;
+    };
+
+    void SyncJoypad(mintboy::Memory &memory, InputPulse &pulse)
     {
         static std::uint16_t last_trace_state = 0xFFFF;
         SDL_PumpEvents();
@@ -109,10 +117,19 @@ namespace
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, keys[SDL_SCANCODE_LEFT] != 0);
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, keys[SDL_SCANCODE_UP] != 0);
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, keys[SDL_SCANCODE_DOWN] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, keys[SDL_SCANCODE_Z] != 0 || keys[SDL_SCANCODE_A] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, keys[SDL_SCANCODE_X] != 0 || keys[SDL_SCANCODE_S] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, keys[SDL_SCANCODE_Z] != 0 || keys[SDL_SCANCODE_A] != 0 || pulse.a_frames > 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, keys[SDL_SCANCODE_X] != 0 || keys[SDL_SCANCODE_S] != 0 || pulse.b_frames > 0);
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, keys[SDL_SCANCODE_BACKSPACE] != 0);
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, keys[SDL_SCANCODE_RETURN] != 0);
+
+        if (pulse.a_frames > 0)
+        {
+            --pulse.a_frames;
+        }
+        if (pulse.b_frames > 0)
+        {
+            --pulse.b_frames;
+        }
 
         if (TraceInputEnabled())
         {
@@ -126,6 +143,8 @@ namespace
             trace_state |= keys[SDL_SCANCODE_A] != 0 ? 1 << 6 : 0;
             trace_state |= keys[SDL_SCANCODE_S] != 0 ? 1 << 7 : 0;
             trace_state |= keys[SDL_SCANCODE_RETURN] != 0 ? 1 << 8 : 0;
+            trace_state |= pulse.a_frames > 0 ? 1 << 9 : 0;
+            trace_state |= pulse.b_frames > 0 ? 1 << 10 : 0;
             if (trace_state == last_trace_state)
             {
                 return;
@@ -142,15 +161,22 @@ namespace
                       << " a=" << static_cast<int>(keys[SDL_SCANCODE_A])
                       << " s=" << static_cast<int>(keys[SDL_SCANCODE_S])
                       << " enter=" << static_cast<int>(keys[SDL_SCANCODE_RETURN])
+                      << " pulse_a=" << pulse.a_frames
+                      << " pulse_b=" << pulse.b_frames
                       << '\n';
         }
     }
 
-    bool PollEvents()
+    bool PollEvents(InputPulse &pulse)
     {
         SDL_Event event{};
         while (SDL_PollEvent(&event) != 0)
         {
+            if (TraceInputEnabled() && event.type == SDL_TEXTINPUT)
+            {
+                std::cerr << "input text text=" << event.text.text << '\n';
+            }
+
             if (TraceInputEnabled() && (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP))
             {
                 std::cerr << "input event"
@@ -164,6 +190,19 @@ namespace
             if (event.type == SDL_QUIT)
             {
                 return true;
+            }
+
+            if (event.type == SDL_TEXTINPUT)
+            {
+                const char c = event.text.text[0];
+                if (c == 'z' || c == 'Z' || c == 'a' || c == 'A')
+                {
+                    pulse.a_frames = 2;
+                }
+                if (c == 'x' || c == 'X' || c == 's' || c == 'S')
+                {
+                    pulse.b_frames = 2;
+                }
             }
 
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
@@ -200,10 +239,11 @@ int main(int argc, char **argv)
 
         bool running = true;
         bool cpu_running = true;
+        InputPulse input_pulse;
         while (running)
         {
-            running = !PollEvents();
-            SyncJoypad(memory);
+            running = !PollEvents(input_pulse);
+            SyncJoypad(memory, input_pulse);
 
             int cycles = 0;
             while (cycles < CyclesPerFrame && cpu_running)
