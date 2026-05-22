@@ -37,6 +37,7 @@ namespace mintboy
 
     private:
         [[nodiscard]] Byte ReadJoypad() const;
+        void TraceJoypad(const char *event, Byte value) const;
         [[nodiscard]] int TimerPeriodCycles() const;
         void TickTimer(int cycles);
         void TickPpu(int cycles);
@@ -58,6 +59,8 @@ namespace mintboy
         Framebuffer framebuffer_{};
         Byte interrupt_enable_ = 0;
         Byte joypad_buttons_ = 0;
+        mutable Byte last_traced_joypad_value_ = 0xFF;
+        mutable Byte last_traced_joypad_buttons_ = 0xFF;
         int divider_cycles_ = 0;
         int timer_cycles_ = 0;
         int ppu_cycles_ = 0;

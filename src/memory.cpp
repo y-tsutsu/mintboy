@@ -1,5 +1,9 @@
 #include "mintboy/memory.hpp"
 
+#include <cstdlib>
+#include <format>
+#include <iostream>
+
 namespace mintboy
 {
     namespace
@@ -141,6 +145,7 @@ namespace mintboy
             if (address == JoypadAddress)
             {
                 io_registers_[JoypadAddress - 0xFF00] = static_cast<Byte>(value & 0x30);
+                TraceJoypad("write", io_registers_[JoypadAddress - 0xFF00]);
                 return;
             }
 
@@ -241,6 +246,11 @@ namespace mintboy
 
         const Byte current_joypad = ReadJoypad();
         const Byte newly_pressed_visible_bits = static_cast<Byte>((previous_joypad & ~current_joypad) & 0x0F);
+        if (joypad_buttons_ != last_traced_joypad_buttons_)
+        {
+            last_traced_joypad_buttons_ = joypad_buttons_;
+            TraceJoypad("buttons", joypad_buttons_);
+        }
         if (pressed && !was_pressed && newly_pressed_visible_bits != 0)
         {
             RequestInterrupt(0x10);
@@ -262,7 +272,28 @@ namespace mintboy
             low_nibble &= static_cast<Byte>(~((joypad_buttons_ >> 4) & 0x0F));
         }
 
-        return static_cast<Byte>(0xC0 | select | low_nibble);
+        const Byte value = static_cast<Byte>(0xC0 | select | low_nibble);
+        if (value != last_traced_joypad_value_)
+        {
+            last_traced_joypad_value_ = value;
+            TraceJoypad("read", value);
+        }
+        return value;
+    }
+
+    void Memory::TraceJoypad(const char *event, Byte value) const
+    {
+        if (std::getenv("MINTBOY_TRACE_JOYPAD") == nullptr)
+        {
+            return;
+        }
+
+        std::cerr << std::format(
+            "joypad {} value=0x{:02X} select=0x{:02X} buttons=0x{:02X}\n",
+            event,
+            value,
+            io_registers_[JoypadAddress - 0xFF00] & 0x30,
+            joypad_buttons_);
     }
 
     void Memory::Tick(int cycles)
