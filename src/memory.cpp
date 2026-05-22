@@ -36,6 +36,7 @@ namespace mintboy
     Memory::Memory(Cartridge &cartridge)
         : cartridge_(cartridge)
     {
+        io_registers_[JoypadAddress - 0xFF00] = 0x30;
     }
 
     Byte Memory::ReadByte(Word address) const
@@ -226,6 +227,7 @@ namespace mintboy
 
     void Memory::SetJoypadButton(JoypadButton button, bool pressed)
     {
+        const Byte previous_joypad = ReadJoypad();
         const Byte mask = static_cast<Byte>(1 << static_cast<Byte>(button));
         const bool was_pressed = (joypad_buttons_ & mask) != 0;
         if (pressed)
@@ -237,7 +239,9 @@ namespace mintboy
             joypad_buttons_ &= static_cast<Byte>(~mask);
         }
 
-        if (pressed && !was_pressed)
+        const Byte current_joypad = ReadJoypad();
+        const Byte newly_pressed_visible_bits = static_cast<Byte>((previous_joypad & ~current_joypad) & 0x0F);
+        if (pressed && !was_pressed && newly_pressed_visible_bits != 0)
         {
             RequestInterrupt(0x10);
         }
