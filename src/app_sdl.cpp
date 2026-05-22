@@ -93,9 +93,41 @@ namespace
         SDL_Texture *texture_ = nullptr;
     };
 
-    void UpdateJoypad(mintboy::Memory &memory, SDL_Keycode key, bool pressed)
+    void UpdateJoypad(mintboy::Memory &memory, const SDL_KeyboardEvent &key, bool pressed)
     {
-        switch (key)
+        switch (key.keysym.scancode)
+        {
+        case SDL_SCANCODE_RIGHT:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, pressed);
+            return;
+        case SDL_SCANCODE_LEFT:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, pressed);
+            return;
+        case SDL_SCANCODE_UP:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, pressed);
+            return;
+        case SDL_SCANCODE_DOWN:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, pressed);
+            return;
+        case SDL_SCANCODE_Z:
+        case SDL_SCANCODE_A:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, pressed);
+            return;
+        case SDL_SCANCODE_X:
+        case SDL_SCANCODE_S:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, pressed);
+            return;
+        case SDL_SCANCODE_BACKSPACE:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, pressed);
+            return;
+        case SDL_SCANCODE_RETURN:
+            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, pressed);
+            return;
+        default:
+            break;
+        }
+
+        switch (key.keysym.sym)
         {
         case SDLK_RIGHT:
             memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, pressed);
@@ -110,9 +142,11 @@ namespace
             memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, pressed);
             break;
         case SDLK_z:
+        case SDLK_a:
             memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, pressed);
             break;
         case SDLK_x:
+        case SDLK_s:
             memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, pressed);
             break;
         case SDLK_BACKSPACE:
@@ -143,12 +177,12 @@ namespace
 
             if (event.type == SDL_KEYDOWN && event.key.repeat == 0)
             {
-                UpdateJoypad(memory, event.key.keysym.sym, true);
+                UpdateJoypad(memory, event.key, true);
             }
 
             if (event.type == SDL_KEYUP)
             {
-                UpdateJoypad(memory, event.key.keysym.sym, false);
+                UpdateJoypad(memory, event.key, false);
             }
         }
 
