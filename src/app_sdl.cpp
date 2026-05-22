@@ -7,6 +7,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -18,6 +19,11 @@ namespace
 {
     constexpr int WindowScale = 4;
     constexpr int CyclesPerFrame = 70224;
+
+    bool TraceInputEnabled()
+    {
+        return std::getenv("MINTBOY_TRACE_INPUT") != nullptr;
+    }
 
     class Sdl
     {
@@ -95,6 +101,7 @@ namespace
 
     void SyncJoypad(mintboy::Memory &memory)
     {
+        static std::uint16_t last_trace_state = 0xFFFF;
         SDL_PumpEvents();
         const std::uint8_t *keys = SDL_GetKeyboardState(nullptr);
 
@@ -106,6 +113,37 @@ namespace
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, keys[SDL_SCANCODE_X] != 0 || keys[SDL_SCANCODE_S] != 0);
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, keys[SDL_SCANCODE_BACKSPACE] != 0);
         memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, keys[SDL_SCANCODE_RETURN] != 0);
+
+        if (TraceInputEnabled())
+        {
+            std::uint16_t trace_state = 0;
+            trace_state |= keys[SDL_SCANCODE_RIGHT] != 0 ? 1 << 0 : 0;
+            trace_state |= keys[SDL_SCANCODE_LEFT] != 0 ? 1 << 1 : 0;
+            trace_state |= keys[SDL_SCANCODE_UP] != 0 ? 1 << 2 : 0;
+            trace_state |= keys[SDL_SCANCODE_DOWN] != 0 ? 1 << 3 : 0;
+            trace_state |= keys[SDL_SCANCODE_Z] != 0 ? 1 << 4 : 0;
+            trace_state |= keys[SDL_SCANCODE_X] != 0 ? 1 << 5 : 0;
+            trace_state |= keys[SDL_SCANCODE_A] != 0 ? 1 << 6 : 0;
+            trace_state |= keys[SDL_SCANCODE_S] != 0 ? 1 << 7 : 0;
+            trace_state |= keys[SDL_SCANCODE_RETURN] != 0 ? 1 << 8 : 0;
+            if (trace_state == last_trace_state)
+            {
+                return;
+            }
+            last_trace_state = trace_state;
+
+            std::cerr << "input state"
+                      << " right=" << static_cast<int>(keys[SDL_SCANCODE_RIGHT])
+                      << " left=" << static_cast<int>(keys[SDL_SCANCODE_LEFT])
+                      << " up=" << static_cast<int>(keys[SDL_SCANCODE_UP])
+                      << " down=" << static_cast<int>(keys[SDL_SCANCODE_DOWN])
+                      << " z=" << static_cast<int>(keys[SDL_SCANCODE_Z])
+                      << " x=" << static_cast<int>(keys[SDL_SCANCODE_X])
+                      << " a=" << static_cast<int>(keys[SDL_SCANCODE_A])
+                      << " s=" << static_cast<int>(keys[SDL_SCANCODE_S])
+                      << " enter=" << static_cast<int>(keys[SDL_SCANCODE_RETURN])
+                      << '\n';
+        }
     }
 
     bool PollEvents()
@@ -113,6 +151,16 @@ namespace
         SDL_Event event{};
         while (SDL_PollEvent(&event) != 0)
         {
+            if (TraceInputEnabled() && (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP))
+            {
+                std::cerr << "input event"
+                          << " type=" << (event.type == SDL_KEYDOWN ? "down" : "up")
+                          << " scancode=" << SDL_GetScancodeName(event.key.keysym.scancode)
+                          << " key=" << SDL_GetKeyName(event.key.keysym.sym)
+                          << " repeat=" << static_cast<int>(event.key.repeat)
+                          << '\n';
+            }
+
             if (event.type == SDL_QUIT)
             {
                 return true;
