@@ -93,74 +93,22 @@ namespace
         SDL_Texture *texture_ = nullptr;
     };
 
-    void UpdateJoypad(mintboy::Memory &memory, const SDL_KeyboardEvent &key, bool pressed)
+    void SyncJoypad(mintboy::Memory &memory)
     {
-        switch (key.keysym.scancode)
-        {
-        case SDL_SCANCODE_RIGHT:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, pressed);
-            return;
-        case SDL_SCANCODE_LEFT:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, pressed);
-            return;
-        case SDL_SCANCODE_UP:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, pressed);
-            return;
-        case SDL_SCANCODE_DOWN:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, pressed);
-            return;
-        case SDL_SCANCODE_Z:
-        case SDL_SCANCODE_A:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, pressed);
-            return;
-        case SDL_SCANCODE_X:
-        case SDL_SCANCODE_S:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, pressed);
-            return;
-        case SDL_SCANCODE_BACKSPACE:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, pressed);
-            return;
-        case SDL_SCANCODE_RETURN:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, pressed);
-            return;
-        default:
-            break;
-        }
+        SDL_PumpEvents();
+        const std::uint8_t *keys = SDL_GetKeyboardState(nullptr);
 
-        switch (key.keysym.sym)
-        {
-        case SDLK_RIGHT:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, pressed);
-            break;
-        case SDLK_LEFT:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, pressed);
-            break;
-        case SDLK_UP:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, pressed);
-            break;
-        case SDLK_DOWN:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, pressed);
-            break;
-        case SDLK_z:
-        case SDLK_a:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, pressed);
-            break;
-        case SDLK_x:
-        case SDLK_s:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, pressed);
-            break;
-        case SDLK_BACKSPACE:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, pressed);
-            break;
-        case SDLK_RETURN:
-            memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, pressed);
-            break;
-        default:
-            break;
-        }
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, keys[SDL_SCANCODE_RIGHT] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, keys[SDL_SCANCODE_LEFT] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, keys[SDL_SCANCODE_UP] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, keys[SDL_SCANCODE_DOWN] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, keys[SDL_SCANCODE_Z] != 0 || keys[SDL_SCANCODE_A] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, keys[SDL_SCANCODE_X] != 0 || keys[SDL_SCANCODE_S] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, keys[SDL_SCANCODE_BACKSPACE] != 0);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, keys[SDL_SCANCODE_RETURN] != 0);
     }
 
-    bool PollEvents(mintboy::Memory &memory)
+    bool PollEvents()
     {
         SDL_Event event{};
         while (SDL_PollEvent(&event) != 0)
@@ -173,16 +121,6 @@ namespace
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
             {
                 return true;
-            }
-
-            if (event.type == SDL_KEYDOWN && event.key.repeat == 0)
-            {
-                UpdateJoypad(memory, event.key, true);
-            }
-
-            if (event.type == SDL_KEYUP)
-            {
-                UpdateJoypad(memory, event.key, false);
             }
         }
 
@@ -216,7 +154,8 @@ int main(int argc, char **argv)
         bool cpu_running = true;
         while (running)
         {
-            running = !PollEvents(memory);
+            running = !PollEvents();
+            SyncJoypad(memory);
 
             int cycles = 0;
             while (cycles < CyclesPerFrame && cpu_running)
