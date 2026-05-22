@@ -444,6 +444,16 @@ namespace mintboy
             SetFlag(Registers::HalfCarryFlag, false);
             SetFlag(Registers::CarryFlag, true);
             return 4;
+        case 0x30: // JR NC,r8
+        {
+            const auto offset = FetchSignedByte();
+            if (!GetFlag(Registers::CarryFlag))
+            {
+                registers_.pc = static_cast<Word>(registers_.pc + offset);
+                return 12;
+            }
+            return 8;
+        }
         case 0x39: // ADD HL,SP
         {
             const Word hl = registers_.HL();
@@ -462,6 +472,16 @@ namespace mintboy
         case 0x3B: // DEC SP
             --registers_.sp;
             return 8;
+        case 0x38: // JR C,r8
+        {
+            const auto offset = FetchSignedByte();
+            if (GetFlag(Registers::CarryFlag))
+            {
+                registers_.pc = static_cast<Word>(registers_.pc + offset);
+                return 12;
+            }
+            return 8;
+        }
         case 0x3C: // INC A
             IncrementRegisterByIndex(7);
             return 4;
