@@ -696,6 +696,9 @@ namespace mintboy
         case 0xF0: // LDH A,(a8)
             registers_.a = memory_.ReadByte(static_cast<Word>(0xFF00 + FetchByte()));
             return 12;
+        case 0xF2: // LD A,(C)
+            registers_.a = memory_.ReadByte(static_cast<Word>(0xFF00 + registers_.c));
+            return 8;
         case 0xF3: // DI
             interrupt_master_enabled_ = false;
             enable_interrupts_after_next_instruction_ = false;

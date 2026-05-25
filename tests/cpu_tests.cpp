@@ -538,6 +538,35 @@ MINTBOY_TEST(cpu_executes_more_16bit_operations)
     MINTBOY_REQUIRE(memory.ReadByte(0xC001) == 0xFF);
 }
 
+MINTBOY_TEST(cpu_loads_through_high_memory_c)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x0E,
+        0x80,
+        0x3E,
+        0x42,
+        0xE2,
+        0x3E,
+        0x00,
+        0xF2,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().c == 0x80);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF80) == 0x42);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x00);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x42);
+}
+
 MINTBOY_TEST(cpu_executes_carry_condition_control_flow)
 {
     mintboy::Cartridge cartridge = MakeRom({
