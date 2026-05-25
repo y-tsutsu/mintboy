@@ -32,6 +32,12 @@ namespace
         return std::getenv("MINTBOY_TRACE_INPUT") != nullptr;
     }
 
+    bool SwapControllerAb()
+    {
+        const char *value = std::getenv("MINTBOY_SWAP_CONTROLLER_AB");
+        return value == nullptr || std::string(value) != "0";
+    }
+
     double SpeedMultiplier(int speed_index)
     {
         switch (speed_index)
@@ -141,7 +147,8 @@ namespace
     class Controller
     {
     public:
-        Controller()
+        explicit Controller(bool swap_ab)
+            : swap_ab_(swap_ab)
         {
             OpenFirstAvailable();
         }
@@ -191,12 +198,16 @@ namespace
 
         [[nodiscard]] bool A() const
         {
-            return Button(SDL_CONTROLLER_BUTTON_B) || Button(SDL_CONTROLLER_BUTTON_Y);
+            return swap_ab_
+                       ? Button(SDL_CONTROLLER_BUTTON_B) || Button(SDL_CONTROLLER_BUTTON_Y)
+                       : Button(SDL_CONTROLLER_BUTTON_A) || Button(SDL_CONTROLLER_BUTTON_X);
         }
 
         [[nodiscard]] bool B() const
         {
-            return Button(SDL_CONTROLLER_BUTTON_A) || Button(SDL_CONTROLLER_BUTTON_X);
+            return swap_ab_
+                       ? Button(SDL_CONTROLLER_BUTTON_A) || Button(SDL_CONTROLLER_BUTTON_X)
+                       : Button(SDL_CONTROLLER_BUTTON_B) || Button(SDL_CONTROLLER_BUTTON_Y);
         }
 
         [[nodiscard]] bool Select() const
@@ -282,6 +293,7 @@ namespace
 
         SDL_GameController *controller_ = nullptr;
         SDL_JoystickID instance_id_ = -1;
+        bool swap_ab_ = true;
     };
 
     void SyncJoypad(mintboy::Memory &memory, const Controller &controller)
@@ -426,7 +438,7 @@ int main(int argc, char **argv)
                                           ? std::filesystem::path(argv[1]).filename().string()
                                           : cartridge.Title();
         Window window(WindowTitle(rom_title, DebugControls{}));
-        Controller controller;
+        Controller controller(SwapControllerAb());
         DebugControls debug_controls;
         std::string current_window_title;
 
