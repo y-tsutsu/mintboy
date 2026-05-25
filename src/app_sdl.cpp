@@ -20,9 +20,42 @@ namespace
     constexpr int WindowScale = 4;
     constexpr int CyclesPerFrame = 70224;
 
+    struct DebugControls
+    {
+        bool paused = false;
+        bool step_frame = false;
+        int speed_index = 1;
+    };
+
     bool TraceInputEnabled()
     {
         return std::getenv("MINTBOY_TRACE_INPUT") != nullptr;
+    }
+
+    double SpeedMultiplier(int speed_index)
+    {
+        switch (speed_index)
+        {
+        case 0:
+            return 0.5;
+        case 2:
+            return 2.0;
+        default:
+            return 1.0;
+        }
+    }
+
+    std::string SpeedLabel(int speed_index)
+    {
+        switch (speed_index)
+        {
+        case 0:
+            return "0.5x";
+        case 2:
+            return "2x";
+        default:
+            return "1x";
+        }
     }
 
     class Sdl
@@ -92,6 +125,11 @@ namespace
             SDL_RenderClear(renderer_);
             SDL_RenderCopy(renderer_, texture_, nullptr, nullptr);
             SDL_RenderPresent(renderer_);
+        }
+
+        void SetTitle(const std::string &title)
+        {
+            SDL_SetWindowTitle(window_, title.c_str());
         }
 
     private:
@@ -300,7 +338,7 @@ namespace
         }
     }
 
-    bool PollEvents(Controller &controller)
+    bool PollEvents(Controller &controller, DebugControls &debug_controls)
     {
         SDL_Event event{};
         while (SDL_PollEvent(&event) != 0)
@@ -326,9 +364,44 @@ namespace
             {
                 return true;
             }
+
+            if (event.type == SDL_KEYDOWN && event.key.repeat == 0)
+            {
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_p:
+                    debug_controls.paused = !debug_controls.paused;
+                    break;
+                case SDLK_PERIOD:
+                    debug_controls.paused = true;
+                    debug_controls.step_frame = true;
+                    break;
+                case SDLK_1:
+                    debug_controls.speed_index = 1;
+                    break;
+                case SDLK_2:
+                    debug_controls.speed_index = 2;
+                    break;
+                case SDLK_3:
+                    debug_controls.speed_index = 0;
+                    break;
+                default:
+                    break;
+                }
+            }
         }
 
         return false;
+    }
+
+    std::string WindowTitle(const std::string &rom_title, const DebugControls &debug_controls)
+    {
+        std::string title = "mintboy - " + rom_title + " [" + SpeedLabel(debug_controls.speed_index) + "]";
+        if (debug_controls.paused)
+        {
+            title += " paused";
+        }
+        return title;
     }
 }
 
@@ -352,18 +425,24 @@ int main(int argc, char **argv)
         const std::string rom_title = cartridge.Title().empty()
                                           ? std::filesystem::path(argv[1]).filename().string()
                                           : cartridge.Title();
-        Window window("mintboy - " + rom_title);
+        Window window(WindowTitle(rom_title, DebugControls{}));
         Controller controller;
+        DebugControls debug_controls;
+        std::string current_window_title;
 
         bool running = true;
         bool cpu_running = true;
         while (running)
         {
-            running = !PollEvents(controller);
+            running = !PollEvents(controller, debug_controls);
             SyncJoypad(memory, controller);
 
+            const bool run_frame = !debug_controls.paused || debug_controls.step_frame;
+            const int target_cycles = debug_controls.step_frame
+                                          ? CyclesPerFrame
+                                          : static_cast<int>(CyclesPerFrame * SpeedMultiplier(debug_controls.speed_index));
             int cycles = 0;
-            while (cycles < CyclesPerFrame && cpu_running)
+            while (run_frame && cycles < target_cycles && cpu_running)
             {
                 try
                 {
@@ -376,8 +455,15 @@ int main(int argc, char **argv)
                     break;
                 }
             }
+            debug_controls.step_frame = false;
 
             window.Present(memory.GetFramebuffer());
+            const std::string next_window_title = WindowTitle(rom_title, debug_controls);
+            if (next_window_title != current_window_title)
+            {
+                current_window_title = next_window_title;
+                window.SetTitle(current_window_title);
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }

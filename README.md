@@ -48,6 +48,14 @@ Keyboard controls:
 - Start: Enter
 - Quit: Escape
 
+Debug controls:
+
+- Pause: P
+- Frame step: .
+- Speed 1x: 1
+- Speed 2x: 2
+- Speed 0.5x: 3
+
 SDL2 game controllers are also supported when the controller is visible to the OS:
 
 - D-pad or left stick: D-pad
