@@ -34,6 +34,7 @@ namespace mintboy
 
     private:
         [[nodiscard]] bool IsMbc1() const;
+        [[nodiscard]] std::size_t SelectedFixedRomBank() const;
         [[nodiscard]] std::size_t SelectedRomBank() const;
         [[nodiscard]] std::size_t SelectedRamBank() const;
 

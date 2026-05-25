@@ -61,7 +61,11 @@ namespace mintboy
     {
         std::size_t resolved_address = address;
 
-        if (IsMbc1() && address >= 0x4000 && address <= 0x7FFF)
+        if (IsMbc1() && address <= 0x3FFF)
+        {
+            resolved_address = (SelectedFixedRomBank() * 0x4000) + address;
+        }
+        else if (IsMbc1() && address >= 0x4000 && address <= 0x7FFF)
         {
             resolved_address = (SelectedRomBank() * 0x4000) + (address - 0x4000);
         }
@@ -236,6 +240,22 @@ namespace mintboy
     {
         const Byte type = CartridgeType();
         return type == 0x01 || type == 0x02 || type == 0x03;
+    }
+
+    std::size_t Cartridge::SelectedFixedRomBank() const
+    {
+        if (mbc1_banking_mode_ == 0)
+        {
+            return 0;
+        }
+
+        const std::size_t bank_count = RomBankCount();
+        if (bank_count == 0)
+        {
+            return 0;
+        }
+
+        return (static_cast<std::size_t>(mbc1_bank_high_) << 5) % bank_count;
     }
 
     std::size_t Cartridge::SelectedRomBank() const

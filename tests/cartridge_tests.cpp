@@ -78,6 +78,34 @@ MINTBOY_TEST(cartridge_switches_mbc1_rom_banks)
     MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x01);
 }
 
+MINTBOY_TEST(cartridge_switches_mbc1_large_rom_banks)
+{
+    std::vector<mintboy::Byte> rom(1024 * 1024, 0);
+    rom[0x0147] = 0x01;
+    rom[0x0148] = 0x05;
+    rom[0x0149] = 0x00;
+
+    for (std::size_t bank = 0; bank < 64; ++bank)
+    {
+        rom[(bank * 0x4000) + 0x0100] = static_cast<mintboy::Byte>(bank);
+    }
+
+    mintboy::Cartridge cartridge(std::move(rom));
+
+    MINTBOY_REQUIRE(cartridge.RomBankCount() == 64);
+    MINTBOY_REQUIRE(cartridge.Read(0x0100) == 0x00);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x01);
+
+    cartridge.Write(0x4000, 0x01);
+    cartridge.Write(0x2000, 0x02);
+    MINTBOY_REQUIRE(cartridge.Read(0x0100) == 0x00);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x22);
+
+    cartridge.Write(0x6000, 0x01);
+    MINTBOY_REQUIRE(cartridge.Read(0x0100) == 0x20);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x02);
+}
+
 MINTBOY_TEST(cartridge_uses_mbc1_external_ram_enable)
 {
     std::vector<mintboy::Byte> rom(0x8000, 0);
