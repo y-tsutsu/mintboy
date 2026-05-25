@@ -30,10 +30,11 @@ namespace
     public:
         Sdl()
         {
-            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0)
+            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
             {
                 throw std::runtime_error(SDL_GetError());
             }
+            SDL_GameControllerEventState(SDL_ENABLE);
         }
 
         ~Sdl()
@@ -99,33 +100,187 @@ namespace
         SDL_Texture *texture_ = nullptr;
     };
 
-    void SyncJoypad(mintboy::Memory &memory)
+    class Controller
+    {
+    public:
+        Controller()
+        {
+            OpenFirstAvailable();
+        }
+
+        ~Controller()
+        {
+            Close();
+        }
+
+        Controller(const Controller &) = delete;
+        Controller &operator=(const Controller &) = delete;
+
+        void HandleEvent(const SDL_Event &event)
+        {
+            if (event.type == SDL_CONTROLLERDEVICEADDED && controller_ == nullptr)
+            {
+                Open(event.cdevice.which);
+                return;
+            }
+
+            if (event.type == SDL_CONTROLLERDEVICEREMOVED && controller_ != nullptr && event.cdevice.which == instance_id_)
+            {
+                Close();
+                OpenFirstAvailable();
+            }
+        }
+
+        [[nodiscard]] bool Right() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || Axis(SDL_CONTROLLER_AXIS_LEFTX) > AxisThreshold;
+        }
+
+        [[nodiscard]] bool Left() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_DPAD_LEFT) || Axis(SDL_CONTROLLER_AXIS_LEFTX) < -AxisThreshold;
+        }
+
+        [[nodiscard]] bool Up() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_DPAD_UP) || Axis(SDL_CONTROLLER_AXIS_LEFTY) < -AxisThreshold;
+        }
+
+        [[nodiscard]] bool Down() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_DPAD_DOWN) || Axis(SDL_CONTROLLER_AXIS_LEFTY) > AxisThreshold;
+        }
+
+        [[nodiscard]] bool A() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_A) || Button(SDL_CONTROLLER_BUTTON_X);
+        }
+
+        [[nodiscard]] bool B() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_B) || Button(SDL_CONTROLLER_BUTTON_Y);
+        }
+
+        [[nodiscard]] bool Select() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_BACK);
+        }
+
+        [[nodiscard]] bool Start() const
+        {
+            return Button(SDL_CONTROLLER_BUTTON_START);
+        }
+
+    private:
+        static constexpr Sint16 AxisThreshold = 16000;
+
+        void OpenFirstAvailable()
+        {
+            const int joystick_count = SDL_NumJoysticks();
+            for (int index = 0; index < joystick_count; ++index)
+            {
+                if (SDL_IsGameController(index) == SDL_TRUE && Open(index))
+                {
+                    return;
+                }
+            }
+
+            if (TraceInputEnabled())
+            {
+                std::cerr << "controller unavailable joysticks=" << joystick_count << '\n';
+            }
+        }
+
+        bool Open(int device_index)
+        {
+            SDL_GameController *controller = SDL_GameControllerOpen(device_index);
+            if (controller == nullptr)
+            {
+                if (TraceInputEnabled())
+                {
+                    std::cerr << "controller open failed index=" << device_index << " error=" << SDL_GetError() << '\n';
+                }
+                return false;
+            }
+
+            Close();
+            controller_ = controller;
+            SDL_Joystick *joystick = SDL_GameControllerGetJoystick(controller_);
+            instance_id_ = joystick == nullptr ? -1 : SDL_JoystickInstanceID(joystick);
+
+            if (TraceInputEnabled())
+            {
+                const char *name = SDL_GameControllerName(controller_);
+                std::cerr << "controller opened index=" << device_index << " name=" << (name == nullptr ? "" : name) << '\n';
+            }
+            return true;
+        }
+
+        void Close()
+        {
+            if (controller_ == nullptr)
+            {
+                return;
+            }
+
+            if (TraceInputEnabled())
+            {
+                std::cerr << "controller closed instance=" << instance_id_ << '\n';
+            }
+            SDL_GameControllerClose(controller_);
+            controller_ = nullptr;
+            instance_id_ = -1;
+        }
+
+        [[nodiscard]] bool Button(SDL_GameControllerButton button) const
+        {
+            return controller_ != nullptr && SDL_GameControllerGetButton(controller_, button) != 0;
+        }
+
+        [[nodiscard]] Sint16 Axis(SDL_GameControllerAxis axis) const
+        {
+            return controller_ == nullptr ? 0 : SDL_GameControllerGetAxis(controller_, axis);
+        }
+
+        SDL_GameController *controller_ = nullptr;
+        SDL_JoystickID instance_id_ = -1;
+    };
+
+    void SyncJoypad(mintboy::Memory &memory, const Controller &controller)
     {
         static std::uint16_t last_trace_state = 0xFFFF;
         SDL_PumpEvents();
         const std::uint8_t *keys = SDL_GetKeyboardState(nullptr);
 
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, keys[SDL_SCANCODE_RIGHT] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, keys[SDL_SCANCODE_LEFT] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, keys[SDL_SCANCODE_UP] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, keys[SDL_SCANCODE_DOWN] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, keys[SDL_SCANCODE_Z] != 0 || keys[SDL_SCANCODE_A] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, keys[SDL_SCANCODE_X] != 0 || keys[SDL_SCANCODE_S] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, keys[SDL_SCANCODE_BACKSPACE] != 0);
-        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, keys[SDL_SCANCODE_RETURN] != 0);
+        const bool right = keys[SDL_SCANCODE_RIGHT] != 0 || controller.Right();
+        const bool left = keys[SDL_SCANCODE_LEFT] != 0 || controller.Left();
+        const bool up = keys[SDL_SCANCODE_UP] != 0 || controller.Up();
+        const bool down = keys[SDL_SCANCODE_DOWN] != 0 || controller.Down();
+        const bool a = keys[SDL_SCANCODE_Z] != 0 || keys[SDL_SCANCODE_A] != 0 || controller.A();
+        const bool b = keys[SDL_SCANCODE_X] != 0 || keys[SDL_SCANCODE_S] != 0 || controller.B();
+        const bool select = keys[SDL_SCANCODE_BACKSPACE] != 0 || controller.Select();
+        const bool start = keys[SDL_SCANCODE_RETURN] != 0 || controller.Start();
+
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Right, right);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Left, left);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Up, up);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Down, down);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::A, a);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::B, b);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Select, select);
+        memory.SetJoypadButton(mintboy::Memory::JoypadButton::Start, start);
 
         if (TraceInputEnabled())
         {
             std::uint16_t trace_state = 0;
-            trace_state |= keys[SDL_SCANCODE_RIGHT] != 0 ? 1 << 0 : 0;
-            trace_state |= keys[SDL_SCANCODE_LEFT] != 0 ? 1 << 1 : 0;
-            trace_state |= keys[SDL_SCANCODE_UP] != 0 ? 1 << 2 : 0;
-            trace_state |= keys[SDL_SCANCODE_DOWN] != 0 ? 1 << 3 : 0;
-            trace_state |= keys[SDL_SCANCODE_Z] != 0 ? 1 << 4 : 0;
-            trace_state |= keys[SDL_SCANCODE_X] != 0 ? 1 << 5 : 0;
-            trace_state |= keys[SDL_SCANCODE_A] != 0 ? 1 << 6 : 0;
-            trace_state |= keys[SDL_SCANCODE_S] != 0 ? 1 << 7 : 0;
-            trace_state |= keys[SDL_SCANCODE_RETURN] != 0 ? 1 << 8 : 0;
+            trace_state |= right ? 1 << 0 : 0;
+            trace_state |= left ? 1 << 1 : 0;
+            trace_state |= up ? 1 << 2 : 0;
+            trace_state |= down ? 1 << 3 : 0;
+            trace_state |= a ? 1 << 4 : 0;
+            trace_state |= b ? 1 << 5 : 0;
+            trace_state |= select ? 1 << 6 : 0;
+            trace_state |= start ? 1 << 7 : 0;
             if (trace_state == last_trace_state)
             {
                 return;
@@ -133,24 +288,25 @@ namespace
             last_trace_state = trace_state;
 
             std::cerr << "input state"
-                      << " right=" << static_cast<int>(keys[SDL_SCANCODE_RIGHT])
-                      << " left=" << static_cast<int>(keys[SDL_SCANCODE_LEFT])
-                      << " up=" << static_cast<int>(keys[SDL_SCANCODE_UP])
-                      << " down=" << static_cast<int>(keys[SDL_SCANCODE_DOWN])
-                      << " z=" << static_cast<int>(keys[SDL_SCANCODE_Z])
-                      << " x=" << static_cast<int>(keys[SDL_SCANCODE_X])
-                      << " a=" << static_cast<int>(keys[SDL_SCANCODE_A])
-                      << " s=" << static_cast<int>(keys[SDL_SCANCODE_S])
-                      << " enter=" << static_cast<int>(keys[SDL_SCANCODE_RETURN])
+                      << " right=" << right
+                      << " left=" << left
+                      << " up=" << up
+                      << " down=" << down
+                      << " a=" << a
+                      << " b=" << b
+                      << " select=" << select
+                      << " start=" << start
                       << '\n';
         }
     }
 
-    bool PollEvents()
+    bool PollEvents(Controller &controller)
     {
         SDL_Event event{};
         while (SDL_PollEvent(&event) != 0)
         {
+            controller.HandleEvent(event);
+
             if (TraceInputEnabled() && (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP))
             {
                 std::cerr << "input event"
@@ -197,13 +353,14 @@ int main(int argc, char **argv)
                                           ? std::filesystem::path(argv[1]).filename().string()
                                           : cartridge.Title();
         Window window("mintboy - " + rom_title);
+        Controller controller;
 
         bool running = true;
         bool cpu_running = true;
         while (running)
         {
-            running = !PollEvents();
-            SyncJoypad(memory);
+            running = !PollEvents(controller);
+            SyncJoypad(memory, controller);
 
             int cycles = 0;
             while (cycles < CyclesPerFrame && cpu_running)
