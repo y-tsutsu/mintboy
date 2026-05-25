@@ -35,7 +35,7 @@ namespace
     bool SwapControllerAb()
     {
         const char *value = std::getenv("MINTBOY_SWAP_CONTROLLER_AB");
-        return value == nullptr || std::string(value) != "0";
+        return value != nullptr && std::string(value) != "0";
     }
 
     double SpeedMultiplier(int speed_index)

@@ -59,12 +59,12 @@ Debug controls:
 SDL2 game controllers are also supported when the controller is visible to the OS:
 
 - D-pad or left stick: D-pad
-- B or Y: A
-- A or X: B
+- A or X: A
+- B or Y: B
 - Back: Select
 - Start: Start
 
-The controller A/B mapping is swapped by default for SNES-style layouts. Set `MINTBOY_SWAP_CONTROLLER_AB=0` to use the SDL standard A/B mapping instead.
+Set `MINTBOY_SWAP_CONTROLLER_AB=1` to swap the controller A/B mapping for SNES-style layouts.
 
 On WSLg, if Z/X/A/S do not work, switch the IME/input mode with the Hankaku/Zenkaku key.
 WSL may not expose USB controllers to Linux by default. If the controller is not listed under `/dev/input`, use the keyboard controls or run the emulator on Windows once the Windows build is revisited.
