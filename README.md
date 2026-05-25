@@ -39,6 +39,17 @@ When SDL2 is available, the `mintboy` executable opens an SDL2 window:
 
 On WSL, an SDL2 window requires WSLg or another X/Wayland server.
 
+Keyboard controls:
+
+- D-pad: Arrow keys
+- A: Z or A
+- B: X or S
+- Select: Backspace
+- Start: Enter
+- Quit: Escape
+
+On WSLg, if Z/X/A/S do not work, switch the IME/input mode with the Hankaku/Zenkaku key.
+
 ## Windows
 
 Windows support is planned, but not the current priority. When revisiting it, vcpkg should be the simplest setup:
