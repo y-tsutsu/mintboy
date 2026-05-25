@@ -413,6 +413,19 @@ MINTBOY_TEST(cpu_executes_immediate_alu_operations)
         0x07,
         0xFE,
         0x00,
+        0x3E,
+        0x00,
+        0xD6,
+        0x01,
+        0x3E,
+        0x0F,
+        0xCE,
+        0x00,
+        0x37,
+        0x3E,
+        0x10,
+        0xDE,
+        0x01,
     });
     mintboy::Memory memory(cartridge);
     mintboy::Cpu cpu(memory);
@@ -436,6 +449,23 @@ MINTBOY_TEST(cpu_executes_immediate_alu_operations)
     MINTBOY_REQUIRE(cpu.Step() == 8);
     MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::ZeroFlag) != 0);
     MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::SubtractFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0xFF);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::CarryFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x10);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::HalfCarryFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x0E);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::SubtractFlag) != 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::HalfCarryFlag) != 0);
 }
 
 MINTBOY_TEST(cpu_executes_conditional_absolute_control_flow)

@@ -525,6 +525,9 @@ namespace mintboy
         case 0xC6: // ADD A,d8
             ExecuteAlu(0, FetchByte());
             return 8;
+        case 0xCE: // ADC A,d8
+            ExecuteAlu(1, FetchByte());
+            return 8;
         case 0xC7: // RST 00H
             PushWord(registers_.pc);
             registers_.pc = 0x0000;
@@ -620,6 +623,9 @@ namespace mintboy
             return 16;
         case 0xD6: // SUB d8
             ExecuteAlu(2, FetchByte());
+            return 8;
+        case 0xDE: // SBC A,d8
+            ExecuteAlu(3, FetchByte());
             return 8;
         case 0xD7: // RST 10H
             PushWord(registers_.pc);
