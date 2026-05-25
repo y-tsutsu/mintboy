@@ -153,12 +153,12 @@ namespace
 
         [[nodiscard]] bool A() const
         {
-            return Button(SDL_CONTROLLER_BUTTON_A) || Button(SDL_CONTROLLER_BUTTON_X);
+            return Button(SDL_CONTROLLER_BUTTON_B) || Button(SDL_CONTROLLER_BUTTON_Y);
         }
 
         [[nodiscard]] bool B() const
         {
-            return Button(SDL_CONTROLLER_BUTTON_B) || Button(SDL_CONTROLLER_BUTTON_Y);
+            return Button(SDL_CONTROLLER_BUTTON_A) || Button(SDL_CONTROLLER_BUTTON_X);
         }
 
         [[nodiscard]] bool Select() const
