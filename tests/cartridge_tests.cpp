@@ -77,3 +77,59 @@ MINTBOY_TEST(cartridge_switches_mbc1_rom_banks)
     cartridge.Write(0x2000, 0x00);
     MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x01);
 }
+
+MINTBOY_TEST(cartridge_uses_mbc1_external_ram_enable)
+{
+    std::vector<mintboy::Byte> rom(0x8000, 0);
+    rom[0x0147] = 0x02;
+    rom[0x0148] = 0x00;
+    rom[0x0149] = 0x02;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+
+    MINTBOY_REQUIRE(cartridge.RamSizeBytes() == 8 * 1024);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0xFF);
+
+    cartridge.WriteRam(0xA000, 0x12);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0xFF);
+
+    cartridge.Write(0x0000, 0x0A);
+    cartridge.WriteRam(0xA000, 0x34);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x34);
+
+    cartridge.Write(0x0000, 0x00);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0xFF);
+}
+
+MINTBOY_TEST(cartridge_switches_mbc1_external_ram_banks)
+{
+    std::vector<mintboy::Byte> rom(0x8000, 0);
+    rom[0x0147] = 0x03;
+    rom[0x0148] = 0x00;
+    rom[0x0149] = 0x03;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+
+    MINTBOY_REQUIRE(cartridge.RamSizeBytes() == 32 * 1024);
+
+    cartridge.Write(0x0000, 0x0A);
+    cartridge.Write(0x6000, 0x01);
+
+    cartridge.Write(0x4000, 0x00);
+    cartridge.WriteRam(0xA000, 0x10);
+
+    cartridge.Write(0x4000, 0x01);
+    cartridge.WriteRam(0xA000, 0x20);
+
+    cartridge.Write(0x4000, 0x02);
+    cartridge.WriteRam(0xA000, 0x30);
+
+    cartridge.Write(0x4000, 0x00);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x10);
+
+    cartridge.Write(0x4000, 0x01);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x20);
+
+    cartridge.Write(0x4000, 0x02);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x30);
+}

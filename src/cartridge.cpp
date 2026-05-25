@@ -38,6 +38,8 @@ namespace mintboy
         {
             throw std::invalid_argument("ROM image is too small to contain a Game Boy header");
         }
+
+        external_ram_.resize(RamSizeBytes(), 0);
     }
 
     Cartridge Cartridge::LoadFromFile(const std::filesystem::path &path)
@@ -72,10 +74,32 @@ namespace mintboy
         return data_[resolved_address];
     }
 
+    Byte Cartridge::ReadRam(Word address) const
+    {
+        if (!external_ram_enabled_ || external_ram_.empty() || address < 0xA000 || address > 0xBFFF)
+        {
+            return 0xFF;
+        }
+
+        const std::size_t resolved_address = (SelectedRamBank() * 0x2000) + (address - 0xA000);
+        if (resolved_address >= external_ram_.size())
+        {
+            return 0xFF;
+        }
+
+        return external_ram_[resolved_address];
+    }
+
     void Cartridge::Write(Word address, Byte value)
     {
         if (!IsMbc1() || address > 0x7FFF)
         {
+            return;
+        }
+
+        if (address <= 0x1FFF)
+        {
+            external_ram_enabled_ = (value & 0x0F) == 0x0A;
             return;
         }
 
@@ -99,6 +123,22 @@ namespace mintboy
         {
             mbc1_banking_mode_ = static_cast<Byte>(value & 0x01);
         }
+    }
+
+    void Cartridge::WriteRam(Word address, Byte value)
+    {
+        if (!external_ram_enabled_ || external_ram_.empty() || address < 0xA000 || address > 0xBFFF)
+        {
+            return;
+        }
+
+        const std::size_t resolved_address = (SelectedRamBank() * 0x2000) + (address - 0xA000);
+        if (resolved_address >= external_ram_.size())
+        {
+            return;
+        }
+
+        external_ram_[resolved_address] = value;
     }
 
     const std::vector<Byte> &Cartridge::Data() const
@@ -219,5 +259,21 @@ namespace mintboy
         }
 
         return bank;
+    }
+
+    std::size_t Cartridge::SelectedRamBank() const
+    {
+        if (!IsMbc1() || mbc1_banking_mode_ == 0)
+        {
+            return 0;
+        }
+
+        const std::size_t bank_count = external_ram_.size() / 0x2000;
+        if (bank_count == 0)
+        {
+            return 0;
+        }
+
+        return mbc1_bank_high_ % bank_count;
     }
 }

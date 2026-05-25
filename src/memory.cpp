@@ -55,6 +55,11 @@ namespace mintboy
             return video_ram_[address - 0x8000];
         }
 
+        if (address >= 0xA000 && address <= 0xBFFF)
+        {
+            return cartridge_.ReadRam(address);
+        }
+
         if (address >= 0xC000 && address <= 0xDFFF)
         {
             return work_ram_[address - 0xC000];
@@ -119,6 +124,12 @@ namespace mintboy
         if (address >= 0x8000 && address <= 0x9FFF)
         {
             video_ram_[address - 0x8000] = value;
+            return;
+        }
+
+        if (address >= 0xA000 && address <= 0xBFFF)
+        {
+            cartridge_.WriteRam(address, value);
             return;
         }
 

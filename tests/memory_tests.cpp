@@ -11,6 +11,15 @@ namespace
     {
         return mintboy::Cartridge(std::vector<mintboy::Byte>(0x8000, 0));
     }
+
+    mintboy::Cartridge MakeMbc1RamCartridge()
+    {
+        std::vector<mintboy::Byte> rom(0x8000, 0);
+        rom[0x0147] = 0x02;
+        rom[0x0148] = 0x00;
+        rom[0x0149] = 0x02;
+        return mintboy::Cartridge(std::move(rom));
+    }
 }
 
 MINTBOY_TEST(memory_stores_video_ram)
@@ -23,6 +32,19 @@ MINTBOY_TEST(memory_stores_video_ram)
 
     MINTBOY_REQUIRE(memory.ReadByte(0x8000) == 0x12);
     MINTBOY_REQUIRE(memory.ReadByte(0x9FFF) == 0x34);
+}
+
+MINTBOY_TEST(memory_maps_cartridge_external_ram)
+{
+    mintboy::Cartridge cartridge = MakeMbc1RamCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xA000, 0x12);
+    MINTBOY_REQUIRE(memory.ReadByte(0xA000) == 0xFF);
+
+    memory.WriteByte(0x0000, 0x0A);
+    memory.WriteByte(0xA000, 0x34);
+    MINTBOY_REQUIRE(memory.ReadByte(0xA000) == 0x34);
 }
 
 MINTBOY_TEST(memory_stores_oam_and_io_registers)
