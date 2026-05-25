@@ -20,6 +20,14 @@ namespace mintboy
         {
             return (lhs & 0x0F) < (rhs & 0x0F);
         }
+
+        constexpr bool IsInvalidOpcode(Byte opcode)
+        {
+            return opcode == 0xD3 || opcode == 0xDB || opcode == 0xDD ||
+                   opcode == 0xE3 || opcode == 0xE4 || opcode == 0xEB ||
+                   opcode == 0xEC || opcode == 0xED || opcode == 0xF4 ||
+                   opcode == 0xFC || opcode == 0xFD;
+        }
     }
 
     Word Registers::AF() const
@@ -763,6 +771,10 @@ namespace mintboy
             ExecuteAlu(7, FetchByte());
             return 8;
         default:
+            if (IsInvalidOpcode(opcode))
+            {
+                throw std::runtime_error(std::format("invalid CPU opcode: 0x{:02X} at PC=0x{:04X}", opcode, opcode_address));
+            }
             throw std::runtime_error(std::format("unimplemented CPU opcode: 0x{:02X} at PC=0x{:04X}", opcode, opcode_address));
         }
     }

@@ -5,6 +5,8 @@
 #include "mintboy/memory.hpp"
 
 #include <algorithm>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace
@@ -39,6 +41,25 @@ MINTBOY_TEST(cpu_executes_immediate_loads)
 
     MINTBOY_REQUIRE(cpu.Step() == 4);
     MINTBOY_REQUIRE(cpu.IsHalted());
+}
+
+MINTBOY_TEST(cpu_reports_invalid_opcode)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0xD3,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    try
+    {
+        cpu.Step();
+        MINTBOY_REQUIRE(false);
+    }
+    catch (const std::runtime_error &error)
+    {
+        MINTBOY_REQUIRE(std::string(error.what()).find("invalid CPU opcode: 0xD3 at PC=0x0100") != std::string::npos);
+    }
 }
 
 MINTBOY_TEST(cpu_executes_absolute_jump)
