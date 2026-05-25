@@ -568,6 +568,38 @@ MINTBOY_TEST(cpu_executes_more_16bit_operations)
     MINTBOY_REQUIRE(memory.ReadByte(0xC001) == 0xFF);
 }
 
+MINTBOY_TEST(cpu_adds_signed_immediate_to_sp)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x31,
+        0xF8,
+        0xFF,
+        0xE8,
+        0x08,
+        0xE8,
+        0xFE,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 12);
+    MINTBOY_REQUIRE(cpu.GetRegisters().sp == 0xFFF8);
+
+    MINTBOY_REQUIRE(cpu.Step() == 16);
+    MINTBOY_REQUIRE(cpu.GetRegisters().sp == 0x0000);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::ZeroFlag) == 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::SubtractFlag) == 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::HalfCarryFlag) != 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::CarryFlag) != 0);
+
+    MINTBOY_REQUIRE(cpu.Step() == 16);
+    MINTBOY_REQUIRE(cpu.GetRegisters().sp == 0xFFFE);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::ZeroFlag) == 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::SubtractFlag) == 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::HalfCarryFlag) == 0);
+    MINTBOY_REQUIRE((cpu.GetRegisters().f & mintboy::Registers::CarryFlag) == 0);
+}
+
 MINTBOY_TEST(cpu_loads_through_high_memory_c)
 {
     mintboy::Cartridge cartridge = MakeRom({

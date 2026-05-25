@@ -686,6 +686,18 @@ namespace mintboy
             PushWord(registers_.pc);
             registers_.pc = 0x0020;
             return 16;
+        case 0xE8: // ADD SP,r8
+        {
+            const auto offset = FetchSignedByte();
+            const auto result = static_cast<std::int32_t>(registers_.sp) + offset;
+            const Word unsigned_offset = static_cast<Word>(static_cast<std::uint8_t>(offset));
+            SetFlag(Registers::ZeroFlag, false);
+            SetFlag(Registers::SubtractFlag, false);
+            SetFlag(Registers::HalfCarryFlag, ((registers_.sp & 0x000F) + (unsigned_offset & 0x000F)) > 0x000F);
+            SetFlag(Registers::CarryFlag, ((registers_.sp & 0x00FF) + (unsigned_offset & 0x00FF)) > 0x00FF);
+            registers_.sp = static_cast<Word>(result);
+            return 16;
+        }
         case 0xE9: // JP (HL)
             registers_.pc = registers_.HL();
             return 4;
