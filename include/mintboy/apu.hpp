@@ -58,6 +58,9 @@ namespace mintboy
         [[nodiscard]] float RenderSquareSample(SquareChannel &channel, Word duty_address, Word frequency_low_address, Word frequency_high_address);
         [[nodiscard]] float RenderWaveSample();
         [[nodiscard]] float RenderNoiseSample();
+        [[nodiscard]] bool IsSquareDacEnabled(Word volume_address) const;
+        [[nodiscard]] bool IsWaveDacEnabled() const;
+        [[nodiscard]] bool IsNoiseDacEnabled() const;
         void TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address);
         [[nodiscard]] int SquareFrequency(Word frequency_low_address, Word frequency_high_address) const;
         void WriteSquareFrequency(Word frequency_low_address, Word frequency_high_address, int frequency);

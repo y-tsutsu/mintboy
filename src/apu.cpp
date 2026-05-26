@@ -46,6 +46,23 @@ namespace mintboy
         }
 
         registers_[RegisterIndex(address)] = value;
+        if (address == 0xFF12 && !IsSquareDacEnabled(0xFF12))
+        {
+            square1_.enabled = false;
+        }
+        else if (address == 0xFF17 && !IsSquareDacEnabled(0xFF17))
+        {
+            square2_.enabled = false;
+        }
+        else if (address == 0xFF1A && !IsWaveDacEnabled())
+        {
+            wave_.enabled = false;
+        }
+        else if (address == 0xFF21 && !IsNoiseDacEnabled())
+        {
+            noise_.enabled = false;
+        }
+
         if (address == 0xFF14 && (value & 0x80) != 0)
         {
             TriggerSquare(square1_, 0xFF11, 0xFF12);
@@ -252,11 +269,26 @@ namespace mintboy
         return (noise_.lfsr & 0x01) == 0 ? amplitude : -amplitude;
     }
 
+    bool Apu::IsSquareDacEnabled(Word volume_address) const
+    {
+        return (registers_[RegisterIndex(volume_address)] & 0xF8) != 0;
+    }
+
+    bool Apu::IsWaveDacEnabled() const
+    {
+        return (registers_[RegisterIndex(0xFF1A)] & 0x80) != 0;
+    }
+
+    bool Apu::IsNoiseDacEnabled() const
+    {
+        return (registers_[RegisterIndex(0xFF21)] & 0xF8) != 0;
+    }
+
     void Apu::TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address)
     {
         const Byte duty_register = registers_[RegisterIndex(duty_address)];
         const int length_load = duty_register & 0x3F;
-        channel.enabled = true;
+        channel.enabled = IsSquareDacEnabled(volume_address);
         channel.phase = 0.0;
         channel.length_counter = length_load == 0 ? 64 : 64 - length_load;
         channel.volume = registers_[RegisterIndex(volume_address)] >> 4;
@@ -330,7 +362,7 @@ namespace mintboy
     void Apu::TriggerWave()
     {
         const int length_load = registers_[RegisterIndex(0xFF1B)];
-        wave_.enabled = (registers_[RegisterIndex(0xFF1A)] & 0x80) != 0;
+        wave_.enabled = IsWaveDacEnabled();
         wave_.position = 0.0;
         wave_.length_counter = length_load == 0 ? 256 : 256 - length_load;
     }
@@ -339,7 +371,7 @@ namespace mintboy
     {
         const Byte length_register = registers_[RegisterIndex(0xFF20)];
         const int length_load = length_register & 0x3F;
-        noise_.enabled = true;
+        noise_.enabled = IsNoiseDacEnabled();
         noise_.lfsr = 0x7FFF;
         noise_.timer = 0.0;
         noise_.length_counter = length_load == 0 ? 64 : 64 - length_load;
