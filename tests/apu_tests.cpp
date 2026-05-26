@@ -207,6 +207,28 @@ MINTBOY_TEST(apu_stops_wave_channel_when_length_expires)
     MINTBOY_REQUIRE(!HasNonZeroSample(apu.DrainSamples()));
 }
 
+MINTBOY_TEST(apu_applies_wave_channel_volume_shift)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF24, 0x77);
+    apu.WriteByte(0xFF25, 0x44);
+    for (int index = 0; index < 16; ++index)
+    {
+        apu.WriteByte(static_cast<mintboy::Word>(0xFF30 + index), static_cast<mintboy::Byte>(0xFF));
+    }
+    apu.WriteByte(0xFF1A, 0x80);
+    apu.WriteByte(0xFF1C, 0x60);
+    apu.WriteByte(0xFF1E, 0x80);
+    apu.Tick(4194304 / 60);
+
+    const std::vector<float> samples = apu.DrainSamples();
+    MINTBOY_REQUIRE(!samples.empty());
+    MINTBOY_REQUIRE(std::all_of(samples.begin(), samples.end(), [](float sample)
+                                { return sample <= 0.26F && sample >= -0.26F; }));
+}
+
 MINTBOY_TEST(apu_respects_channel_output_select)
 {
     mintboy::Apu apu;

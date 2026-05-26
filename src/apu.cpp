@@ -192,8 +192,8 @@ namespace mintboy
             return 0.0F;
         }
 
-        const double frequency = 65536.0 / (2048 - frequency_value);
-        wave_.position += 32.0 * frequency / SampleRate;
+        const double samples_per_second = 2'097'152.0 / (2048 - frequency_value);
+        wave_.position += samples_per_second / SampleRate;
         while (wave_.position >= 32.0)
         {
             wave_.position -= 32.0;
@@ -208,8 +208,9 @@ namespace mintboy
             return 0.0F;
         }
 
-        const int shifted_sample = sample >> (volume_code - 1);
-        return (static_cast<float>(shifted_sample) / 7.5F) - 1.0F;
+        constexpr std::array<float, 4> volume_scales = {0.0F, 1.0F, 0.5F, 0.25F};
+        const float centered_sample = (static_cast<float>(sample) - 7.5F) / 7.5F;
+        return centered_sample * volume_scales[static_cast<std::size_t>(volume_code)];
     }
 
     float Apu::RenderNoiseSample()
