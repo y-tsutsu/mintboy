@@ -30,6 +30,7 @@ namespace mintboy
                 registers_.fill(0);
                 square1_ = {};
                 square2_ = {};
+                noise_ = {};
                 frame_sequencer_cycles_ = 0;
                 frame_sequencer_step_ = 0;
                 sample_cycles_ = 0.0;
@@ -52,6 +53,10 @@ namespace mintboy
         {
             TriggerSquare(square2_, 0xFF16, 0xFF17);
         }
+        else if (address == 0xFF23 && (value & 0x80) != 0)
+        {
+            TriggerNoise();
+        }
     }
 
     void Apu::Tick(int cycles)
@@ -71,6 +76,7 @@ namespace mintboy
             float sample = 0.0F;
             sample += RenderSquareSample(square1_, 0xFF11, 0xFF13, 0xFF14);
             sample += RenderSquareSample(square2_, 0xFF16, 0xFF18, 0xFF19);
+            sample += RenderNoiseSample();
             pending_samples_.push_back(std::clamp(sample * 0.25F, -1.0F, 1.0F));
         }
     }
@@ -129,6 +135,35 @@ namespace mintboy
         return channel.phase < duty_thresholds[duty] ? amplitude : -amplitude;
     }
 
+    float Apu::RenderNoiseSample()
+    {
+        if (!noise_.enabled || noise_.volume == 0)
+        {
+            return 0.0F;
+        }
+
+        constexpr std::array<int, 8> divisors = {8, 16, 32, 48, 64, 80, 96, 112};
+        const Byte polynomial = registers_[RegisterIndex(0xFF22)];
+        const int divisor = divisors[polynomial & 0x07];
+        const int clock_shift = polynomial >> 4;
+        const double frequency = static_cast<double>(CpuFrequency) / (divisor << clock_shift);
+        noise_.timer += frequency / SampleRate;
+
+        while (noise_.timer >= 1.0)
+        {
+            noise_.timer -= 1.0;
+            const std::uint16_t bit = static_cast<std::uint16_t>((noise_.lfsr ^ (noise_.lfsr >> 1)) & 0x01);
+            noise_.lfsr = static_cast<std::uint16_t>((noise_.lfsr >> 1) | (bit << 14));
+            if ((polynomial & 0x08) != 0)
+            {
+                noise_.lfsr = static_cast<std::uint16_t>((noise_.lfsr & ~(1 << 6)) | (bit << 6));
+            }
+        }
+
+        const float amplitude = static_cast<float>(noise_.volume) / 15.0F;
+        return (noise_.lfsr & 0x01) == 0 ? amplitude : -amplitude;
+    }
+
     void Apu::TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address)
     {
         const Byte duty_register = registers_[RegisterIndex(duty_address)];
@@ -139,6 +174,19 @@ namespace mintboy
         channel.volume = registers_[RegisterIndex(volume_address)] >> 4;
         const int envelope_period = registers_[RegisterIndex(volume_address)] & 0x07;
         channel.envelope_timer = envelope_period == 0 ? 8 : envelope_period;
+    }
+
+    void Apu::TriggerNoise()
+    {
+        const Byte length_register = registers_[RegisterIndex(0xFF20)];
+        const int length_load = length_register & 0x3F;
+        noise_.enabled = true;
+        noise_.lfsr = 0x7FFF;
+        noise_.timer = 0.0;
+        noise_.length_counter = length_load == 0 ? 64 : 64 - length_load;
+        noise_.volume = registers_[RegisterIndex(0xFF21)] >> 4;
+        const int envelope_period = registers_[RegisterIndex(0xFF21)] & 0x07;
+        noise_.envelope_timer = envelope_period == 0 ? 8 : envelope_period;
     }
 
     void Apu::TickFrameSequencer(int cycles)
@@ -153,12 +201,14 @@ namespace mintboy
             {
                 TickLength(square1_, 0xFF14);
                 TickLength(square2_, 0xFF19);
+                TickNoiseLength();
             }
 
             if (frame_sequencer_step_ == 7)
             {
                 TickEnvelope(square1_, 0xFF12);
                 TickEnvelope(square2_, 0xFF17);
+                TickNoiseEnvelope();
             }
 
             frame_sequencer_step_ = (frame_sequencer_step_ + 1) & 0x07;
@@ -176,6 +226,20 @@ namespace mintboy
         if (channel.length_counter == 0)
         {
             channel.enabled = false;
+        }
+    }
+
+    void Apu::TickNoiseLength()
+    {
+        if (!noise_.enabled || (registers_[RegisterIndex(0xFF23)] & 0x40) == 0 || noise_.length_counter <= 0)
+        {
+            return;
+        }
+
+        --noise_.length_counter;
+        if (noise_.length_counter == 0)
+        {
+            noise_.enabled = false;
         }
     }
 
@@ -208,6 +272,38 @@ namespace mintboy
         else if (!increase && channel.volume > 0)
         {
             --channel.volume;
+        }
+    }
+
+    void Apu::TickNoiseEnvelope()
+    {
+        if (!noise_.enabled)
+        {
+            return;
+        }
+
+        const Byte volume_register = registers_[RegisterIndex(0xFF21)];
+        const int envelope_period = volume_register & 0x07;
+        if (envelope_period == 0)
+        {
+            return;
+        }
+
+        --noise_.envelope_timer;
+        if (noise_.envelope_timer > 0)
+        {
+            return;
+        }
+
+        noise_.envelope_timer = envelope_period;
+        const bool increase = (volume_register & 0x08) != 0;
+        if (increase && noise_.volume < 15)
+        {
+            ++noise_.volume;
+        }
+        else if (!increase && noise_.volume > 0)
+        {
+            --noise_.volume;
         }
     }
 }

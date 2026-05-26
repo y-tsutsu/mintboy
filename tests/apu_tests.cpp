@@ -117,3 +117,35 @@ MINTBOY_TEST(apu_updates_square_channel_volume_envelope)
     MINTBOY_REQUIRE(std::any_of(samples.begin(), samples.end(), [](float sample)
                                 { return sample > 0.05F || sample < -0.05F; }));
 }
+
+MINTBOY_TEST(apu_generates_noise_channel_samples)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF20, 0x00);
+    apu.WriteByte(0xFF21, 0xF0);
+    apu.WriteByte(0xFF22, 0x00);
+    apu.WriteByte(0xFF23, 0x80);
+    apu.Tick(4194304 / 60);
+
+    const std::vector<float> samples = apu.DrainSamples();
+    MINTBOY_REQUIRE(!samples.empty());
+    MINTBOY_REQUIRE(HasNonZeroSample(samples));
+}
+
+MINTBOY_TEST(apu_stops_noise_channel_when_length_expires)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF20, 0x3F);
+    apu.WriteByte(0xFF21, 0xF0);
+    apu.WriteByte(0xFF22, 0x00);
+    apu.WriteByte(0xFF23, 0xC0);
+    apu.Tick(1024);
+    MINTBOY_REQUIRE(HasNonZeroSample(apu.DrainSamples()));
+
+    apu.Tick(8192);
+    MINTBOY_REQUIRE(!HasNonZeroSample(apu.DrainSamples()));
+}
