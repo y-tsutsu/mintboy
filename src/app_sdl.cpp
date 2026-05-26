@@ -179,15 +179,12 @@ namespace
 
         void QueueSamples(const std::vector<float> &samples)
         {
-            constexpr int MaximumQueuedSamples = AudioSampleRate / 10;
-            if (QueuedSamples() > MaximumQueuedSamples)
+            constexpr int MaximumQueuedSamples = AudioSampleRate * 3 / 20;
+            if (QueuedSamples() < MaximumQueuedSamples && !samples.empty())
             {
-                SDL_ClearQueuedAudio(device_);
-            }
-
-            if (!samples.empty())
-            {
-                if (SDL_QueueAudio(device_, samples.data(), static_cast<Uint32>(samples.size() * sizeof(float))) != 0)
+                const int available_samples = MaximumQueuedSamples - QueuedSamples();
+                const auto samples_to_queue = static_cast<std::size_t>(std::min<int>(available_samples, static_cast<int>(samples.size())));
+                if (SDL_QueueAudio(device_, samples.data(), static_cast<Uint32>(samples_to_queue * sizeof(float))) != 0)
                 {
                     throw std::runtime_error(SDL_GetError());
                 }
@@ -204,7 +201,7 @@ namespace
 
         void QueueSilenceIfNeeded()
         {
-            constexpr int MinimumQueuedSamples = AudioSampleRate / 20;
+            constexpr int MinimumQueuedSamples = AudioSampleRate * 3 / 100;
             const int queued_samples = QueuedSamples();
             if (queued_samples >= MinimumQueuedSamples)
             {
