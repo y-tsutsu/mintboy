@@ -2,7 +2,17 @@
 
 #include "mintboy/apu.hpp"
 
+#include <algorithm>
 #include <vector>
+
+namespace
+{
+    bool HasNonZeroSample(const std::vector<float> &samples)
+    {
+        return std::any_of(samples.begin(), samples.end(), [](float sample)
+                           { return sample != 0.0F; });
+    }
+}
 
 MINTBOY_TEST(apu_starts_disabled)
 {
@@ -60,6 +70,7 @@ MINTBOY_TEST(apu_generates_square_channel_samples)
 
     const std::vector<float> samples = apu.DrainSamples();
     MINTBOY_REQUIRE(!samples.empty());
+    MINTBOY_REQUIRE(HasNonZeroSample(samples));
 }
 
 MINTBOY_TEST(apu_drain_samples_clears_pending_samples)
@@ -74,4 +85,35 @@ MINTBOY_TEST(apu_drain_samples_clears_pending_samples)
 
     MINTBOY_REQUIRE(!apu.DrainSamples().empty());
     MINTBOY_REQUIRE(apu.DrainSamples().empty());
+}
+
+MINTBOY_TEST(apu_stops_square_channel_when_length_expires)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF11, 0xBF);
+    apu.WriteByte(0xFF12, 0xF0);
+    apu.WriteByte(0xFF14, 0xC0);
+    apu.Tick(1024);
+    MINTBOY_REQUIRE(HasNonZeroSample(apu.DrainSamples()));
+
+    apu.Tick(8192);
+    MINTBOY_REQUIRE(!HasNonZeroSample(apu.DrainSamples()));
+}
+
+MINTBOY_TEST(apu_updates_square_channel_volume_envelope)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF11, 0x80);
+    apu.WriteByte(0xFF12, 0x19);
+    apu.WriteByte(0xFF14, 0x80);
+    apu.Tick(8192 * 8 * 5);
+
+    const std::vector<float> samples = apu.DrainSamples();
+    MINTBOY_REQUIRE(!samples.empty());
+    MINTBOY_REQUIRE(std::any_of(samples.begin(), samples.end(), [](float sample)
+                                { return sample > 0.05F || sample < -0.05F; }));
 }
