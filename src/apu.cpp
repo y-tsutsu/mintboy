@@ -30,6 +30,7 @@ namespace mintboy
                 registers_.fill(0);
                 square1_ = {};
                 square2_ = {};
+                wave_ = {};
                 noise_ = {};
                 frame_sequencer_cycles_ = 0;
                 frame_sequencer_step_ = 0;
@@ -52,6 +53,10 @@ namespace mintboy
         else if (address == 0xFF19 && (value & 0x80) != 0)
         {
             TriggerSquare(square2_, 0xFF16, 0xFF17);
+        }
+        else if (address == 0xFF1E && (value & 0x80) != 0)
+        {
+            TriggerWave();
         }
         else if (address == 0xFF23 && (value & 0x80) != 0)
         {
@@ -76,6 +81,7 @@ namespace mintboy
             float sample = 0.0F;
             sample += RenderSquareSample(square1_, 0xFF11, 0xFF13, 0xFF14);
             sample += RenderSquareSample(square2_, 0xFF16, 0xFF18, 0xFF19);
+            sample += RenderWaveSample();
             sample += RenderNoiseSample();
             pending_samples_.push_back(std::clamp(sample * 0.25F, -1.0F, 1.0F));
         }
@@ -135,6 +141,40 @@ namespace mintboy
         return channel.phase < duty_thresholds[duty] ? amplitude : -amplitude;
     }
 
+    float Apu::RenderWaveSample()
+    {
+        if (!wave_.enabled || (registers_[RegisterIndex(0xFF1A)] & 0x80) == 0)
+        {
+            return 0.0F;
+        }
+
+        const int frequency_value = registers_[RegisterIndex(0xFF1D)] |
+                                    ((registers_[RegisterIndex(0xFF1E)] & 0x07) << 8);
+        if (frequency_value >= 2048)
+        {
+            return 0.0F;
+        }
+
+        const double frequency = 65536.0 / (2048 - frequency_value);
+        wave_.position += 32.0 * frequency / SampleRate;
+        while (wave_.position >= 32.0)
+        {
+            wave_.position -= 32.0;
+        }
+
+        const int sample_index = static_cast<int>(wave_.position);
+        const Byte packed_sample = registers_[RegisterIndex(static_cast<Word>(0xFF30 + (sample_index / 2)))];
+        const int sample = (sample_index & 1) == 0 ? packed_sample >> 4 : packed_sample & 0x0F;
+        const int volume_code = (registers_[RegisterIndex(0xFF1C)] >> 5) & 0x03;
+        if (volume_code == 0)
+        {
+            return 0.0F;
+        }
+
+        const int shifted_sample = sample >> (volume_code - 1);
+        return (static_cast<float>(shifted_sample) / 7.5F) - 1.0F;
+    }
+
     float Apu::RenderNoiseSample()
     {
         if (!noise_.enabled || noise_.volume == 0)
@@ -176,6 +216,14 @@ namespace mintboy
         channel.envelope_timer = envelope_period == 0 ? 8 : envelope_period;
     }
 
+    void Apu::TriggerWave()
+    {
+        const int length_load = registers_[RegisterIndex(0xFF1B)];
+        wave_.enabled = (registers_[RegisterIndex(0xFF1A)] & 0x80) != 0;
+        wave_.position = 0.0;
+        wave_.length_counter = length_load == 0 ? 256 : 256 - length_load;
+    }
+
     void Apu::TriggerNoise()
     {
         const Byte length_register = registers_[RegisterIndex(0xFF20)];
@@ -201,6 +249,7 @@ namespace mintboy
             {
                 TickLength(square1_, 0xFF14);
                 TickLength(square2_, 0xFF19);
+                TickWaveLength();
                 TickNoiseLength();
             }
 
@@ -226,6 +275,20 @@ namespace mintboy
         if (channel.length_counter == 0)
         {
             channel.enabled = false;
+        }
+    }
+
+    void Apu::TickWaveLength()
+    {
+        if (!wave_.enabled || (registers_[RegisterIndex(0xFF1E)] & 0x40) == 0 || wave_.length_counter <= 0)
+        {
+            return;
+        }
+
+        --wave_.length_counter;
+        if (wave_.length_counter == 0)
+        {
+            wave_.enabled = false;
         }
     }
 

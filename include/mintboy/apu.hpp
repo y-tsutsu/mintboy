@@ -41,15 +41,25 @@ namespace mintboy
             int envelope_timer = 0;
         };
 
+        struct WaveChannel
+        {
+            bool enabled = false;
+            double position = 0.0;
+            int length_counter = 0;
+        };
+
         [[nodiscard]] static bool IsRegisterAddress(Word address);
         [[nodiscard]] static std::size_t RegisterIndex(Word address);
         [[nodiscard]] bool IsEnabled() const;
         [[nodiscard]] float RenderSquareSample(SquareChannel &channel, Word duty_address, Word frequency_low_address, Word frequency_high_address);
+        [[nodiscard]] float RenderWaveSample();
         [[nodiscard]] float RenderNoiseSample();
         void TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address);
+        void TriggerWave();
         void TriggerNoise();
         void TickFrameSequencer(int cycles);
         void TickLength(SquareChannel &channel, Word frequency_high_address);
+        void TickWaveLength();
         void TickNoiseLength();
         void TickEnvelope(SquareChannel &channel, Word volume_address);
         void TickNoiseEnvelope();
@@ -57,6 +67,7 @@ namespace mintboy
         std::array<Byte, RegisterEnd - RegisterStart + 1> registers_{};
         SquareChannel square1_{};
         SquareChannel square2_{};
+        WaveChannel wave_{};
         NoiseChannel noise_{};
         int frame_sequencer_cycles_ = 0;
         int frame_sequencer_step_ = 0;

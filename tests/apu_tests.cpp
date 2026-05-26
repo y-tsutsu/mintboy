@@ -149,3 +149,44 @@ MINTBOY_TEST(apu_stops_noise_channel_when_length_expires)
     apu.Tick(8192);
     MINTBOY_REQUIRE(!HasNonZeroSample(apu.DrainSamples()));
 }
+
+MINTBOY_TEST(apu_generates_wave_channel_samples)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    for (int index = 0; index < 16; ++index)
+    {
+        apu.WriteByte(static_cast<mintboy::Word>(0xFF30 + index), static_cast<mintboy::Byte>(0xF0));
+    }
+    apu.WriteByte(0xFF1A, 0x80);
+    apu.WriteByte(0xFF1B, 0x00);
+    apu.WriteByte(0xFF1C, 0x20);
+    apu.WriteByte(0xFF1D, 0x00);
+    apu.WriteByte(0xFF1E, 0x87);
+    apu.Tick(4194304 / 60);
+
+    const std::vector<float> samples = apu.DrainSamples();
+    MINTBOY_REQUIRE(!samples.empty());
+    MINTBOY_REQUIRE(HasNonZeroSample(samples));
+}
+
+MINTBOY_TEST(apu_stops_wave_channel_when_length_expires)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    for (int index = 0; index < 16; ++index)
+    {
+        apu.WriteByte(static_cast<mintboy::Word>(0xFF30 + index), static_cast<mintboy::Byte>(0xF0));
+    }
+    apu.WriteByte(0xFF1A, 0x80);
+    apu.WriteByte(0xFF1B, 0xFF);
+    apu.WriteByte(0xFF1C, 0x20);
+    apu.WriteByte(0xFF1E, 0xC0);
+    apu.Tick(1024);
+    MINTBOY_REQUIRE(HasNonZeroSample(apu.DrainSamples()));
+
+    apu.Tick(8192);
+    MINTBOY_REQUIRE(!HasNonZeroSample(apu.DrainSamples()));
+}
