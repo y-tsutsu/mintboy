@@ -14,11 +14,13 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace
 {
     constexpr int WindowScale = 4;
     constexpr int CyclesPerFrame = 70224;
+    constexpr int AudioSampleRate = 48000;
 
     struct DebugControls
     {
@@ -69,7 +71,7 @@ namespace
     public:
         Sdl()
         {
-            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
+            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0)
             {
                 throw std::runtime_error(SDL_GetError());
             }
@@ -142,6 +144,60 @@ namespace
         SDL_Window *window_ = nullptr;
         SDL_Renderer *renderer_ = nullptr;
         SDL_Texture *texture_ = nullptr;
+    };
+
+    class Audio
+    {
+    public:
+        Audio()
+        {
+            SDL_AudioSpec desired{};
+            desired.freq = AudioSampleRate;
+            desired.format = AUDIO_F32SYS;
+            desired.channels = 1;
+            desired.samples = 1024;
+
+            device_ = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained_, 0);
+            if (device_ == 0)
+            {
+                throw std::runtime_error(SDL_GetError());
+            }
+
+            SDL_PauseAudioDevice(device_, 0);
+        }
+
+        ~Audio()
+        {
+            if (device_ != 0)
+            {
+                SDL_CloseAudioDevice(device_);
+            }
+        }
+
+        Audio(const Audio &) = delete;
+        Audio &operator=(const Audio &) = delete;
+
+        void QueueSilenceIfNeeded()
+        {
+            constexpr int TargetQueuedSamples = AudioSampleRate / 10;
+            const auto queued_samples = static_cast<int>(SDL_GetQueuedAudioSize(device_) / sizeof(float));
+            if (queued_samples >= TargetQueuedSamples)
+            {
+                return;
+            }
+
+            const int samples_to_queue = TargetQueuedSamples - queued_samples;
+            silence_.assign(static_cast<std::size_t>(samples_to_queue), 0.0F);
+            if (SDL_QueueAudio(device_, silence_.data(), static_cast<Uint32>(silence_.size() * sizeof(float))) != 0)
+            {
+                throw std::runtime_error(SDL_GetError());
+            }
+        }
+
+    private:
+        SDL_AudioDeviceID device_ = 0;
+        SDL_AudioSpec obtained_{};
+        std::vector<float> silence_;
     };
 
     class Controller
@@ -438,6 +494,7 @@ int main(int argc, char **argv)
                                           ? std::filesystem::path(argv[1]).filename().string()
                                           : cartridge.Title();
         Window window(WindowTitle(rom_title, DebugControls{}));
+        Audio audio;
         Controller controller(SwapControllerAb());
         DebugControls debug_controls;
         std::string current_window_title;
@@ -470,6 +527,7 @@ int main(int argc, char **argv)
             debug_controls.step_frame = false;
 
             window.Present(memory.GetFramebuffer());
+            audio.QueueSilenceIfNeeded();
             const std::string next_window_title = WindowTitle(rom_title, debug_controls);
             if (next_window_title != current_window_title)
             {
