@@ -39,6 +39,8 @@ $ ./build/mintboy path/to/game.gb
 
 On WSL, an SDL2 window requires WSLg or another X/Wayland server.
 
+Audio output is experimental. The current APU implementation only generates minimal square wave channels.
+
 Keyboard controls:
 
 - D-pad: Arrow keys

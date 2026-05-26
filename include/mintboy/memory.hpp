@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 namespace mintboy
 {
@@ -35,6 +36,7 @@ namespace mintboy
         void SetJoypadButton(JoypadButton button, bool pressed);
         void WriteByte(Word address, Byte value);
         void Tick(int cycles);
+        [[nodiscard]] std::vector<float> DrainAudioSamples();
 
     private:
         [[nodiscard]] Byte ReadJoypad() const;

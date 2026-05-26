@@ -327,6 +327,11 @@ namespace mintboy
         apu_.Tick(cycles);
     }
 
+    std::vector<float> Memory::DrainAudioSamples()
+    {
+        return apu_.DrainSamples();
+    }
+
     void Memory::TickTimer(int cycles)
     {
         divider_cycles_ += cycles;

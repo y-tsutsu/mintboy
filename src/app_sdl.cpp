@@ -177,16 +177,30 @@ namespace
         Audio(const Audio &) = delete;
         Audio &operator=(const Audio &) = delete;
 
+        void QueueSamples(const std::vector<float> &samples)
+        {
+            if (!samples.empty())
+            {
+                if (SDL_QueueAudio(device_, samples.data(), static_cast<Uint32>(samples.size() * sizeof(float))) != 0)
+                {
+                    throw std::runtime_error(SDL_GetError());
+                }
+            }
+
+            QueueSilenceIfNeeded();
+        }
+
+    private:
         void QueueSilenceIfNeeded()
         {
-            constexpr int TargetQueuedSamples = AudioSampleRate / 10;
+            constexpr int MinimumQueuedSamples = AudioSampleRate / 20;
             const auto queued_samples = static_cast<int>(SDL_GetQueuedAudioSize(device_) / sizeof(float));
-            if (queued_samples >= TargetQueuedSamples)
+            if (queued_samples >= MinimumQueuedSamples)
             {
                 return;
             }
 
-            const int samples_to_queue = TargetQueuedSamples - queued_samples;
+            const int samples_to_queue = MinimumQueuedSamples - queued_samples;
             silence_.assign(static_cast<std::size_t>(samples_to_queue), 0.0F);
             if (SDL_QueueAudio(device_, silence_.data(), static_cast<Uint32>(silence_.size() * sizeof(float))) != 0)
             {
@@ -194,7 +208,6 @@ namespace
             }
         }
 
-    private:
         SDL_AudioDeviceID device_ = 0;
         SDL_AudioSpec obtained_{};
         std::vector<float> silence_;
@@ -527,7 +540,7 @@ int main(int argc, char **argv)
             debug_controls.step_frame = false;
 
             window.Present(memory.GetFramebuffer());
-            audio.QueueSilenceIfNeeded();
+            audio.QueueSamples(memory.DrainAudioSamples());
             const std::string next_window_title = WindowTitle(rom_title, debug_controls);
             if (next_window_title != current_window_title)
             {
