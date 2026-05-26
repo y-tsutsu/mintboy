@@ -14,6 +14,8 @@ namespace mintboy
         constexpr Word TimerModuloAddress = 0xFF06;
         constexpr Word TimerControlAddress = 0xFF07;
         constexpr Word InterruptFlagAddress = 0xFF0F;
+        constexpr Word ApuRegisterStartAddress = 0xFF10;
+        constexpr Word ApuRegisterEndAddress = 0xFF3F;
         constexpr Word LcdControlAddress = 0xFF40;
         constexpr Word LcdStatusAddress = 0xFF41;
         constexpr Word ScrollYAddress = 0xFF42;
@@ -77,6 +79,11 @@ namespace mintboy
 
         if (address >= 0xFF00 && address <= 0xFF7F)
         {
+            if (address >= ApuRegisterStartAddress && address <= ApuRegisterEndAddress)
+            {
+                return apu_.ReadByte(address);
+            }
+
             if (address == JoypadAddress)
             {
                 return ReadJoypad();
@@ -153,6 +160,12 @@ namespace mintboy
 
         if (address >= 0xFF00 && address <= 0xFF7F)
         {
+            if (address >= ApuRegisterStartAddress && address <= ApuRegisterEndAddress)
+            {
+                apu_.WriteByte(address, value);
+                return;
+            }
+
             if (address == JoypadAddress)
             {
                 io_registers_[JoypadAddress - 0xFF00] = static_cast<Byte>(value & 0x30);
@@ -311,6 +324,7 @@ namespace mintboy
     {
         TickTimer(cycles);
         TickPpu(cycles);
+        apu_.Tick(cycles);
     }
 
     void Memory::TickTimer(int cycles)

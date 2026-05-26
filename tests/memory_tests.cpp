@@ -61,6 +61,20 @@ MINTBOY_TEST(memory_stores_oam_and_io_registers)
     MINTBOY_REQUIRE(memory.ReadByte(0xFF7F) == 0xBC);
 }
 
+MINTBOY_TEST(memory_maps_apu_registers)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF12, 0xF3);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF12) == 0x00);
+
+    memory.WriteByte(0xFF26, 0x80);
+    memory.WriteByte(0xFF12, 0xF3);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF26) == 0x80);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF12) == 0xF3);
+}
+
 MINTBOY_TEST(memory_reads_joypad_direction_buttons)
 {
     mintboy::Cartridge cartridge = MakeCartridge();

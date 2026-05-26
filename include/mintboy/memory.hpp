@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mintboy/apu.hpp"
 #include "mintboy/cartridge.hpp"
 #include "mintboy/types.hpp"
 
@@ -51,6 +52,7 @@ namespace mintboy
         void UpdateLyCompareFlag();
 
         Cartridge &cartridge_;
+        Apu apu_{};
         std::array<Byte, 0x2000> video_ram_{};
         std::array<Byte, 0x2000> work_ram_{};
         std::array<Byte, 0xA0> oam_{};

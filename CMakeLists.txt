@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(mintboy_core
+    src/apu.cpp
     src/cartridge.cpp
     src/cpu.cpp
     src/memory.cpp
@@ -66,6 +67,7 @@ endif()
 enable_testing()
 
 add_executable(mintboy_tests
+    tests/apu_tests.cpp
     tests/cartridge_tests.cpp
     tests/cpu_tests.cpp
     tests/memory_tests.cpp
