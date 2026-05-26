@@ -51,6 +51,7 @@ namespace mintboy
         [[nodiscard]] static bool IsRegisterAddress(Word address);
         [[nodiscard]] static std::size_t RegisterIndex(Word address);
         [[nodiscard]] bool IsEnabled() const;
+        [[nodiscard]] float MixChannels(float channel1, float channel2, float channel3, float channel4) const;
         [[nodiscard]] float RenderSquareSample(SquareChannel &channel, Word duty_address, Word frequency_low_address, Word frequency_high_address);
         [[nodiscard]] float RenderWaveSample();
         [[nodiscard]] float RenderNoiseSample();

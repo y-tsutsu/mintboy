@@ -78,12 +78,11 @@ namespace mintboy
         while (sample_cycles_ >= cycles_per_sample)
         {
             sample_cycles_ -= cycles_per_sample;
-            float sample = 0.0F;
-            sample += RenderSquareSample(square1_, 0xFF11, 0xFF13, 0xFF14);
-            sample += RenderSquareSample(square2_, 0xFF16, 0xFF18, 0xFF19);
-            sample += RenderWaveSample();
-            sample += RenderNoiseSample();
-            pending_samples_.push_back(std::clamp(sample * 0.25F, -1.0F, 1.0F));
+            const float channel1 = RenderSquareSample(square1_, 0xFF11, 0xFF13, 0xFF14);
+            const float channel2 = RenderSquareSample(square2_, 0xFF16, 0xFF18, 0xFF19);
+            const float channel3 = RenderWaveSample();
+            const float channel4 = RenderNoiseSample();
+            pending_samples_.push_back(std::clamp(MixChannels(channel1, channel2, channel3, channel4), -1.0F, 1.0F));
         }
     }
 
@@ -107,6 +106,44 @@ namespace mintboy
     bool Apu::IsEnabled() const
     {
         return (registers_[RegisterIndex(ControlAddress)] & 0x80) != 0;
+    }
+
+    float Apu::MixChannels(float channel1, float channel2, float channel3, float channel4) const
+    {
+        const Byte output_select = registers_[RegisterIndex(0xFF25)];
+        const Byte volume = registers_[RegisterIndex(0xFF24)];
+        const std::array<float, 4> channels = {channel1, channel2, channel3, channel4};
+
+        float left = 0.0F;
+        float right = 0.0F;
+        int left_count = 0;
+        int right_count = 0;
+        for (int channel = 0; channel < 4; ++channel)
+        {
+            if ((output_select & (1 << channel)) != 0)
+            {
+                right += channels[static_cast<std::size_t>(channel)];
+                ++right_count;
+            }
+            if ((output_select & (1 << (channel + 4))) != 0)
+            {
+                left += channels[static_cast<std::size_t>(channel)];
+                ++left_count;
+            }
+        }
+
+        if (left_count > 0)
+        {
+            left /= static_cast<float>(left_count);
+        }
+        if (right_count > 0)
+        {
+            right /= static_cast<float>(right_count);
+        }
+
+        const float left_volume = static_cast<float>(((volume >> 4) & 0x07) + 1) / 8.0F;
+        const float right_volume = static_cast<float>((volume & 0x07) + 1) / 8.0F;
+        return ((left * left_volume) + (right * right_volume)) * 0.5F;
     }
 
     float Apu::RenderSquareSample(SquareChannel &channel, Word duty_address, Word frequency_low_address, Word frequency_high_address)
