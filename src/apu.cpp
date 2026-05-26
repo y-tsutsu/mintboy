@@ -200,16 +200,8 @@ namespace mintboy
         }
 
         const int sample_index = static_cast<int>(wave_.position);
-        const int next_sample_index = (sample_index + 1) & 0x1F;
-        const auto read_sample = [this](int index)
-        {
-            const Byte packed_sample = registers_[RegisterIndex(static_cast<Word>(0xFF30 + (index / 2)))];
-            return (index & 1) == 0 ? packed_sample >> 4 : packed_sample & 0x0F;
-        };
-        const float sample = static_cast<float>(read_sample(sample_index));
-        const float next_sample = static_cast<float>(read_sample(next_sample_index));
-        const float fraction = static_cast<float>(wave_.position - sample_index);
-        const float interpolated_sample = sample + ((next_sample - sample) * fraction);
+        const Byte packed_sample = registers_[RegisterIndex(static_cast<Word>(0xFF30 + (sample_index / 2)))];
+        const int sample = (sample_index & 1) == 0 ? packed_sample >> 4 : packed_sample & 0x0F;
         const int volume_code = (registers_[RegisterIndex(0xFF1C)] >> 5) & 0x03;
         if (volume_code == 0)
         {
@@ -217,7 +209,7 @@ namespace mintboy
         }
 
         constexpr std::array<float, 4> volume_scales = {0.0F, 1.0F, 0.5F, 0.25F};
-        const float centered_sample = (interpolated_sample - 7.5F) / 7.5F;
+        const float centered_sample = (static_cast<float>(sample) - 7.5F) / 7.5F;
         return centered_sample * volume_scales[static_cast<std::size_t>(volume_code)];
     }
 
