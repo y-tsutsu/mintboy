@@ -126,6 +126,25 @@ MINTBOY_TEST(apu_updates_square_channel_volume_envelope)
                                 { return sample > 0.05F || sample < -0.05F; }));
 }
 
+MINTBOY_TEST(apu_updates_channel1_frequency_sweep)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF24, 0x77);
+    apu.WriteByte(0xFF25, 0x11);
+    apu.WriteByte(0xFF10, 0x11);
+    apu.WriteByte(0xFF11, 0x80);
+    apu.WriteByte(0xFF12, 0xF0);
+    apu.WriteByte(0xFF13, 0x00);
+    apu.WriteByte(0xFF14, 0x81);
+
+    apu.Tick(8192 * 3);
+
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF13) == 0x80);
+    MINTBOY_REQUIRE((apu.ReadByte(0xFF14) & 0x07) == 0x01);
+}
+
 MINTBOY_TEST(apu_generates_noise_channel_samples)
 {
     mintboy::Apu apu;

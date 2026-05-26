@@ -29,6 +29,9 @@ namespace mintboy
             int length_counter = 0;
             int volume = 0;
             int envelope_timer = 0;
+            int sweep_shadow_frequency = 0;
+            int sweep_timer = 0;
+            bool sweep_enabled = false;
         };
 
         struct NoiseChannel
@@ -56,6 +59,10 @@ namespace mintboy
         [[nodiscard]] float RenderWaveSample();
         [[nodiscard]] float RenderNoiseSample();
         void TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address);
+        [[nodiscard]] int SquareFrequency(Word frequency_low_address, Word frequency_high_address) const;
+        void WriteSquareFrequency(Word frequency_low_address, Word frequency_high_address, int frequency);
+        [[nodiscard]] int CalculateSweepFrequency() const;
+        void TickSweep();
         void TriggerWave();
         void TriggerNoise();
         void TickFrameSequencer(int cycles);

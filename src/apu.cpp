@@ -49,6 +49,17 @@ namespace mintboy
         if (address == 0xFF14 && (value & 0x80) != 0)
         {
             TriggerSquare(square1_, 0xFF11, 0xFF12);
+            square1_.sweep_shadow_frequency = SquareFrequency(0xFF13, 0xFF14);
+            square1_.sweep_timer = ((registers_[RegisterIndex(0xFF10)] >> 4) & 0x07);
+            if (square1_.sweep_timer == 0)
+            {
+                square1_.sweep_timer = 8;
+            }
+            square1_.sweep_enabled = (((registers_[RegisterIndex(0xFF10)] >> 4) & 0x07) != 0) || ((registers_[RegisterIndex(0xFF10)] & 0x07) != 0);
+            if ((registers_[RegisterIndex(0xFF10)] & 0x07) != 0 && CalculateSweepFrequency() > 2047)
+            {
+                square1_.enabled = false;
+            }
         }
         else if (address == 0xFF19 && (value & 0x80) != 0)
         {
@@ -158,8 +169,7 @@ namespace mintboy
             return 0.0F;
         }
 
-        const int frequency_value = registers_[RegisterIndex(frequency_low_address)] |
-                                    ((registers_[RegisterIndex(frequency_high_address)] & 0x07) << 8);
+        const int frequency_value = SquareFrequency(frequency_low_address, frequency_high_address);
         if (frequency_value >= 2048)
         {
             return 0.0F;
@@ -254,6 +264,69 @@ namespace mintboy
         channel.envelope_timer = envelope_period == 0 ? 8 : envelope_period;
     }
 
+    int Apu::SquareFrequency(Word frequency_low_address, Word frequency_high_address) const
+    {
+        return registers_[RegisterIndex(frequency_low_address)] |
+               ((registers_[RegisterIndex(frequency_high_address)] & 0x07) << 8);
+    }
+
+    void Apu::WriteSquareFrequency(Word frequency_low_address, Word frequency_high_address, int frequency)
+    {
+        registers_[RegisterIndex(frequency_low_address)] = static_cast<Byte>(frequency & 0xFF);
+        registers_[RegisterIndex(frequency_high_address)] = static_cast<Byte>((registers_[RegisterIndex(frequency_high_address)] & 0xF8) | ((frequency >> 8) & 0x07));
+    }
+
+    int Apu::CalculateSweepFrequency() const
+    {
+        const Byte sweep = registers_[RegisterIndex(0xFF10)];
+        const int shift = sweep & 0x07;
+        const int delta = square1_.sweep_shadow_frequency >> shift;
+        return (sweep & 0x08) != 0
+                   ? square1_.sweep_shadow_frequency - delta
+                   : square1_.sweep_shadow_frequency + delta;
+    }
+
+    void Apu::TickSweep()
+    {
+        if (!square1_.sweep_enabled)
+        {
+            return;
+        }
+
+        --square1_.sweep_timer;
+        if (square1_.sweep_timer > 0)
+        {
+            return;
+        }
+
+        const int period = (registers_[RegisterIndex(0xFF10)] >> 4) & 0x07;
+        square1_.sweep_timer = period == 0 ? 8 : period;
+        if (period == 0)
+        {
+            return;
+        }
+
+        const int shift = registers_[RegisterIndex(0xFF10)] & 0x07;
+        if (shift == 0)
+        {
+            return;
+        }
+
+        const int frequency = CalculateSweepFrequency();
+        if (frequency > 2047)
+        {
+            square1_.enabled = false;
+            return;
+        }
+
+        square1_.sweep_shadow_frequency = frequency;
+        WriteSquareFrequency(0xFF13, 0xFF14, frequency);
+        if (CalculateSweepFrequency() > 2047)
+        {
+            square1_.enabled = false;
+        }
+    }
+
     void Apu::TriggerWave()
     {
         const int length_load = registers_[RegisterIndex(0xFF1B)];
@@ -289,6 +362,11 @@ namespace mintboy
                 TickLength(square2_, 0xFF19);
                 TickWaveLength();
                 TickNoiseLength();
+            }
+
+            if (frame_sequencer_step_ == 2 || frame_sequencer_step_ == 6)
+            {
+                TickSweep();
             }
 
             if (frame_sequencer_step_ == 7)
