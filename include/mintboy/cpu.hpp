@@ -78,6 +78,7 @@ namespace mintboy
         bool stopped_ = false;
         bool interrupt_master_enabled_ = false;
         bool enable_interrupts_after_next_instruction_ = false;
+        bool halt_bug_ = false;
         int elapsed_cycles_ = 0;
     };
 }

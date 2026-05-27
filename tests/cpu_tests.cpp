@@ -884,3 +884,59 @@ MINTBOY_TEST(cpu_executes_stop)
     MINTBOY_REQUIRE(cpu.Step() == 4);
     MINTBOY_REQUIRE(cpu.GetRegisters().a != 0x42);
 }
+
+MINTBOY_TEST(cpu_executes_halt_bug_when_interrupt_is_pending_with_ime_disabled)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x76,
+        0x04,
+        0x04,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    memory.WriteByte(0xFFFF, 0x01);
+    memory.WriteByte(0xFF0F, 0x01);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(!cpu.IsHalted());
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0101);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.GetRegisters().b == 0x01);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0101);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.GetRegisters().b == 0x02);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0102);
+}
+
+MINTBOY_TEST(cpu_services_interrupt_from_halt_bug_address_after_ei)
+{
+    std::vector<mintboy::Byte> rom(0x8000, 0);
+    rom[0x0040] = 0xD9;
+    rom[0x0100] = 0x31;
+    rom[0x0101] = 0x00;
+    rom[0x0102] = 0xC1;
+    rom[0x0103] = 0xFB;
+    rom[0x0104] = 0x76;
+    rom[0x0105] = 0x04;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    memory.WriteByte(0xFFFF, 0x01);
+    memory.WriteByte(0xFF0F, 0x01);
+
+    MINTBOY_REQUIRE(cpu.Step() == 12);
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0105);
+
+    MINTBOY_REQUIRE(cpu.Step() == 20);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0040);
+
+    MINTBOY_REQUIRE(cpu.Step() == 16);
+    MINTBOY_REQUIRE(cpu.GetRegisters().pc == 0x0104);
+}

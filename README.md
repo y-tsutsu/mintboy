@@ -54,7 +54,7 @@ $ ./build/mintboy_headless "rom/tests/gb-test-roms/cpu_instrs/individual/01-spec
 
 The test ROM collection is intentionally not vendored or added as a git submodule here because its licensing terms are not clearly documented in the mirror.
 
-When the ROMs are present at `rom/tests/gb-test-roms`, CMake also registers the Blargg CPU instruction, instruction timing, and memory timing ROMs as optional CTest cases. Re-run CMake after cloning the ROMs so the tests are discovered:
+When the ROMs are present at `rom/tests/gb-test-roms`, CMake also registers the Blargg CPU instruction, instruction timing, memory timing, and HALT bug ROMs as optional CTest cases. Re-run CMake after cloning the ROMs so the tests are discovered:
 
 ```console
 $ cmake -S . -B build

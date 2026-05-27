@@ -84,6 +84,11 @@ target_link_libraries(mintboy_tests PRIVATE mintboy_core)
 add_test(NAME mintboy_tests COMMAND mintboy_tests)
 
 function(add_headless_rom_test test_name rom_path frames)
+    set(expected_output "Passed")
+    if(ARGC GREATER 3)
+        set(expected_output "${ARGV3}")
+    endif()
+
     add_test(
         NAME "${test_name}"
         COMMAND
@@ -91,6 +96,7 @@ function(add_headless_rom_test test_name rom_path frames)
             "-DMINTBOY_HEADLESS=$<TARGET_FILE:mintboy_headless>"
             "-DMINTBOY_ROM=${rom_path}"
             "-DMINTBOY_FRAMES=${frames}"
+            "-DMINTBOY_EXPECTED_OUTPUT=${expected_output}"
             -P "${PROJECT_SOURCE_DIR}/cmake/RunHeadlessTest.cmake"
     )
 endfunction()
@@ -135,4 +141,11 @@ if(EXISTS "${MINTBOY_BLARGG_MEM_TIMING_TEST_DIR}")
     add_headless_rom_test("blargg_mem_timing_03-modify_timing" "${MINTBOY_BLARGG_MEM_TIMING_TEST_DIR}/03-modify_timing.gb" 1200)
 else()
     message(STATUS "Blargg memory timing test ROMs were not found; skipping external memory timing tests")
+endif()
+
+set(MINTBOY_BLARGG_HALT_BUG_ROM "${MINTBOY_BLARGG_TEST_DIR}/halt_bug.gb")
+if(EXISTS "${MINTBOY_BLARGG_HALT_BUG_ROM}")
+    add_headless_rom_test("blargg_halt_bug" "${MINTBOY_BLARGG_HALT_BUG_ROM}" 1200 "Framebuffer hash: 0xB73934EEE037E125")
+else()
+    message(STATUS "Blargg HALT bug test ROM was not found; skipping external HALT bug test")
 endif()

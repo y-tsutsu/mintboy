@@ -90,6 +90,18 @@ MINTBOY_TEST(memory_captures_serial_transfer_output)
     MINTBOY_REQUIRE(memory.ReadByte(0xFF02) == 0x01);
 }
 
+MINTBOY_TEST(memory_masks_interrupt_flag_unused_bits)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF0F, 0x00);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF0F) == 0xE0);
+
+    memory.WriteByte(0xFF0F, 0xFF);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF0F) == 0xFF);
+}
+
 MINTBOY_TEST(memory_reads_joypad_direction_buttons)
 {
     mintboy::Cartridge cartridge = MakeCartridge();

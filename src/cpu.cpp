@@ -146,7 +146,14 @@ namespace mintboy
         {
             if (opcode == 0x76) // HALT
             {
-                halted_ = true;
+                if (!interrupt_master_enabled_ && PendingInterrupts() != 0)
+                {
+                    halt_bug_ = true;
+                }
+                else
+                {
+                    halted_ = true;
+                }
                 return 4;
             }
 
@@ -806,7 +813,14 @@ namespace mintboy
     Byte Cpu::FetchByte()
     {
         const Byte value = ReadByte(registers_.pc);
-        ++registers_.pc;
+        if (halt_bug_)
+        {
+            halt_bug_ = false;
+        }
+        else
+        {
+            ++registers_.pc;
+        }
         return value;
     }
 
@@ -836,6 +850,12 @@ namespace mintboy
         enable_interrupts_after_next_instruction_ = false;
         halted_ = false;
         stopped_ = false;
+
+        if (halt_bug_)
+        {
+            halt_bug_ = false;
+            --registers_.pc;
+        }
 
         IdleCycle();
         IdleCycle();

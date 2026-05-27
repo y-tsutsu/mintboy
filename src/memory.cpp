@@ -96,6 +96,11 @@ namespace mintboy
                 return static_cast<Byte>(io_registers_[address - 0xFF00] | 0xF8);
             }
 
+            if (address == InterruptFlagAddress)
+            {
+                return static_cast<Byte>(io_registers_[InterruptFlagAddress - 0xFF00] | 0xE0);
+            }
+
             if (address == LcdStatusAddress)
             {
                 return static_cast<Byte>(io_registers_[address - 0xFF00] | 0x80);
@@ -197,6 +202,12 @@ namespace mintboy
             {
                 io_registers_[TimerControlAddress - 0xFF00] = static_cast<Byte>(value & 0x07);
                 timer_cycles_ = 0;
+                return;
+            }
+
+            if (address == InterruptFlagAddress)
+            {
+                io_registers_[InterruptFlagAddress - 0xFF00] = static_cast<Byte>(value & 0x1F);
                 return;
             }
 
