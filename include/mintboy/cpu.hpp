@@ -53,13 +53,16 @@ namespace mintboy
         [[nodiscard]] Byte PendingInterrupts() const;
         [[nodiscard]] int ServiceInterrupt();
 
+        Byte ReadByte(Word address);
+        void WriteByte(Word address, Byte value);
+        void IdleCycle();
         Byte FetchByte();
         Word FetchWord();
         std::int8_t FetchSignedByte();
         void PushWord(Word value);
         Word PopWord();
 
-        Byte ReadRegisterByIndex(Byte index) const;
+        Byte ReadRegisterByIndex(Byte index);
         void WriteRegisterByIndex(Byte index, Byte value);
         void IncrementRegisterByIndex(Byte index);
         void DecrementRegisterByIndex(Byte index);
@@ -75,5 +78,6 @@ namespace mintboy
         bool stopped_ = false;
         bool interrupt_master_enabled_ = false;
         bool enable_interrupts_after_next_instruction_ = false;
+        int elapsed_cycles_ = 0;
     };
 }

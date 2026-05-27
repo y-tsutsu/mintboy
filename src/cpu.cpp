@@ -101,6 +101,8 @@ namespace mintboy
 
     int Cpu::Step()
     {
+        elapsed_cycles_ = 0;
+
         if (PendingInterrupts() != 0)
         {
             halted_ = false;
@@ -110,7 +112,6 @@ namespace mintboy
         if (interrupt_master_enabled_ && PendingInterrupts() != 0)
         {
             const int cycles = ServiceInterrupt();
-            memory_.Tick(cycles);
             return cycles;
         }
 
@@ -123,7 +124,10 @@ namespace mintboy
             interrupt_master_enabled_ = true;
         }
 
-        memory_.Tick(cycles);
+        while (elapsed_cycles_ < cycles)
+        {
+            IdleCycle();
+        }
         return cycles;
     }
 
@@ -131,6 +135,7 @@ namespace mintboy
     {
         if (halted_ || stopped_)
         {
+            IdleCycle();
             return 4;
         }
 
@@ -171,7 +176,7 @@ namespace mintboy
             registers_.SetBC(FetchWord());
             return 12;
         case 0x02: // LD (BC),A
-            memory_.WriteByte(registers_.BC(), registers_.a);
+            WriteByte(registers_.BC(), registers_.a);
             return 8;
         case 0x03: // INC BC
             registers_.SetBC(static_cast<Word>(registers_.BC() + 1));
@@ -204,8 +209,8 @@ namespace mintboy
         case 0x08: // LD (a16),SP
         {
             const Word address = FetchWord();
-            memory_.WriteByte(address, static_cast<Byte>(registers_.sp));
-            memory_.WriteByte(static_cast<Word>(address + 1), static_cast<Byte>(registers_.sp >> 8));
+            WriteByte(address, static_cast<Byte>(registers_.sp));
+            WriteByte(static_cast<Word>(address + 1), static_cast<Byte>(registers_.sp >> 8));
             return 20;
         }
         case 0x09: // ADD HL,BC
@@ -220,7 +225,7 @@ namespace mintboy
             return 8;
         }
         case 0x0A: // LD A,(BC)
-            registers_.a = memory_.ReadByte(registers_.BC());
+            registers_.a = ReadByte(registers_.BC());
             return 8;
         case 0x0B: // DEC BC
             registers_.SetBC(static_cast<Word>(registers_.BC() - 1));
@@ -254,7 +259,7 @@ namespace mintboy
             registers_.SetDE(FetchWord());
             return 12;
         case 0x12: // LD (DE),A
-            memory_.WriteByte(registers_.DE(), registers_.a);
+            WriteByte(registers_.DE(), registers_.a);
             return 8;
         case 0x13: // INC DE
             registers_.SetDE(static_cast<Word>(registers_.DE() + 1));
@@ -297,7 +302,7 @@ namespace mintboy
             return 12;
         }
         case 0x1A: // LD A,(DE)
-            registers_.a = memory_.ReadByte(registers_.DE());
+            registers_.a = ReadByte(registers_.DE());
             return 8;
         case 0x1B: // DEC DE
             registers_.SetDE(static_cast<Word>(registers_.DE() - 1));
@@ -336,7 +341,7 @@ namespace mintboy
             registers_.SetHL(FetchWord());
             return 12;
         case 0x22: // LD (HL+),A
-            memory_.WriteByte(registers_.HL(), registers_.a);
+            WriteByte(registers_.HL(), registers_.a);
             registers_.SetHL(static_cast<Word>(registers_.HL() + 1));
             return 8;
         case 0x23: // INC HL
@@ -372,7 +377,7 @@ namespace mintboy
             return 8;
         }
         case 0x2A: // LD A,(HL+)
-            registers_.a = memory_.ReadByte(registers_.HL());
+            registers_.a = ReadByte(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() + 1));
             return 8;
         case 0x2B: // DEC HL
@@ -432,14 +437,14 @@ namespace mintboy
             registers_.sp = FetchWord();
             return 12;
         case 0x32: // LD (HL-),A
-            memory_.WriteByte(registers_.HL(), registers_.a);
+            WriteByte(registers_.HL(), registers_.a);
             registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
             return 8;
         case 0x33: // INC SP
             ++registers_.sp;
             return 8;
         case 0x36: // LD (HL),d8
-            memory_.WriteByte(registers_.HL(), FetchByte());
+            WriteByte(registers_.HL(), FetchByte());
             return 12;
         case 0x34: // INC (HL)
             IncrementRegisterByIndex(6);
@@ -474,7 +479,7 @@ namespace mintboy
             return 8;
         }
         case 0x3A: // LD A,(HL-)
-            registers_.a = memory_.ReadByte(registers_.HL());
+            registers_.a = ReadByte(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
             return 8;
         case 0x3B: // DEC SP
@@ -679,10 +684,10 @@ namespace mintboy
             registers_.SetHL(PopWord());
             return 12;
         case 0xE0: // LDH (a8),A
-            memory_.WriteByte(static_cast<Word>(0xFF00 + FetchByte()), registers_.a);
+            WriteByte(static_cast<Word>(0xFF00 + FetchByte()), registers_.a);
             return 12;
         case 0xE2: // LD (C),A
-            memory_.WriteByte(static_cast<Word>(0xFF00 + registers_.c), registers_.a);
+            WriteByte(static_cast<Word>(0xFF00 + registers_.c), registers_.a);
             return 8;
         case 0xE5: // PUSH HL
             PushWord(registers_.HL());
@@ -710,7 +715,7 @@ namespace mintboy
             registers_.pc = registers_.HL();
             return 4;
         case 0xEA: // LD (a16),A
-            memory_.WriteByte(FetchWord(), registers_.a);
+            WriteByte(FetchWord(), registers_.a);
             return 16;
         case 0xEF: // RST 28H
             PushWord(registers_.pc);
@@ -720,10 +725,10 @@ namespace mintboy
             registers_.SetAF(PopWord());
             return 12;
         case 0xF0: // LDH A,(a8)
-            registers_.a = memory_.ReadByte(static_cast<Word>(0xFF00 + FetchByte()));
+            registers_.a = ReadByte(static_cast<Word>(0xFF00 + FetchByte()));
             return 12;
         case 0xF2: // LD A,(C)
-            registers_.a = memory_.ReadByte(static_cast<Word>(0xFF00 + registers_.c));
+            registers_.a = ReadByte(static_cast<Word>(0xFF00 + registers_.c));
             return 8;
         case 0xF3: // DI
             interrupt_master_enabled_ = false;
@@ -755,7 +760,7 @@ namespace mintboy
             registers_.sp = registers_.HL();
             return 8;
         case 0xFA: // LD A,(a16)
-            registers_.a = memory_.ReadByte(FetchWord());
+            registers_.a = ReadByte(FetchWord());
             return 16;
         case 0xFB: // EI
             enable_interrupts_after_next_instruction_ = true;
@@ -779,9 +784,28 @@ namespace mintboy
         }
     }
 
+    Byte Cpu::ReadByte(Word address)
+    {
+        const Byte value = memory_.ReadByte(address);
+        IdleCycle();
+        return value;
+    }
+
+    void Cpu::WriteByte(Word address, Byte value)
+    {
+        memory_.WriteByte(address, value);
+        IdleCycle();
+    }
+
+    void Cpu::IdleCycle()
+    {
+        memory_.Tick(4);
+        elapsed_cycles_ += 4;
+    }
+
     Byte Cpu::FetchByte()
     {
-        const Byte value = memory_.ReadByte(registers_.pc);
+        const Byte value = ReadByte(registers_.pc);
         ++registers_.pc;
         return value;
     }
@@ -813,6 +837,9 @@ namespace mintboy
         halted_ = false;
         stopped_ = false;
 
+        IdleCycle();
+        IdleCycle();
+        IdleCycle();
         memory_.WriteByte(InterruptFlagAddress, static_cast<Byte>(memory_.ReadByte(InterruptFlagAddress) & ~interrupt_bit));
         PushWord(registers_.pc);
         registers_.pc = vector;
@@ -834,21 +861,21 @@ namespace mintboy
     void Cpu::PushWord(Word value)
     {
         --registers_.sp;
-        memory_.WriteByte(registers_.sp, static_cast<Byte>(value >> 8));
+        WriteByte(registers_.sp, static_cast<Byte>(value >> 8));
         --registers_.sp;
-        memory_.WriteByte(registers_.sp, static_cast<Byte>(value));
+        WriteByte(registers_.sp, static_cast<Byte>(value));
     }
 
     Word Cpu::PopWord()
     {
-        const Byte low = memory_.ReadByte(registers_.sp);
+        const Byte low = ReadByte(registers_.sp);
         ++registers_.sp;
-        const Byte high = memory_.ReadByte(registers_.sp);
+        const Byte high = ReadByte(registers_.sp);
         ++registers_.sp;
         return static_cast<Word>(low | (high << 8));
     }
 
-    Byte Cpu::ReadRegisterByIndex(Byte index) const
+    Byte Cpu::ReadRegisterByIndex(Byte index)
     {
         switch (index)
         {
@@ -865,7 +892,7 @@ namespace mintboy
         case 5:
             return registers_.l;
         case 6:
-            return memory_.ReadByte(registers_.HL());
+            return ReadByte(registers_.HL());
         case 7:
             return registers_.a;
         default:
@@ -896,7 +923,7 @@ namespace mintboy
             registers_.l = value;
             return;
         case 6:
-            memory_.WriteByte(registers_.HL(), value);
+            WriteByte(registers_.HL(), value);
             return;
         case 7:
             registers_.a = value;

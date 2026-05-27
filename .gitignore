@@ -60,6 +60,9 @@ compile_commands.json
 # vcpkg
 vcpkg_installed/
 
+# editor settings
+.vscode/
+
 # debug information files
 *.dwo
 

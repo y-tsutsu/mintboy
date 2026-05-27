@@ -54,21 +54,12 @@ $ ./build/mintboy_headless "rom/tests/gb-test-roms/cpu_instrs/individual/01-spec
 
 The test ROM collection is intentionally not vendored or added as a git submodule here because its licensing terms are not clearly documented in the mirror.
 
-When the ROMs are present at `rom/tests/gb-test-roms`, CMake also registers the Blargg CPU instruction and instruction timing ROMs as optional CTest cases. Re-run CMake after cloning the ROMs so the tests are discovered:
+When the ROMs are present at `rom/tests/gb-test-roms`, CMake also registers the Blargg CPU instruction, instruction timing, and memory timing ROMs as optional CTest cases. Re-run CMake after cloning the ROMs so the tests are discovered:
 
 ```console
 $ cmake -S . -B build
 $ ctest --test-dir build --output-on-failure
 ```
-
-Known-failing ROM tests can also be registered when you want to inspect current emulator gaps:
-
-```console
-$ cmake -S . -B build -DMINTBOY_ENABLE_KNOWN_FAILING_ROM_TESTS=ON
-$ ctest --test-dir build --output-on-failure
-```
-
-At the moment, this adds the Blargg memory timing tests. They are expected to fail until memory access timing is modeled more precisely.
 
 ## SDL2 frontend
 
