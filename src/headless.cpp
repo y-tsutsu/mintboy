@@ -71,6 +71,31 @@ namespace
             file.write(rgb, sizeof(rgb));
         }
     }
+
+    std::string BlarggMemoryOutput(mintboy::Memory &memory)
+    {
+        if (memory.ReadByte(0xA001) != 0xDE || memory.ReadByte(0xA002) != 0xB0 || memory.ReadByte(0xA003) != 0x61)
+        {
+            return {};
+        }
+
+        std::string output = std::format("Blargg memory status: 0x{:02X}\n", memory.ReadByte(0xA000));
+        output += "Blargg memory output:\n";
+        for (mintboy::Word address = 0xA004; address <= 0xBFFF; ++address)
+        {
+            const mintboy::Byte value = memory.ReadByte(address);
+            if (value == 0)
+            {
+                break;
+            }
+            output.push_back(static_cast<char>(value));
+        }
+        if (!output.empty() && output.back() != '\n')
+        {
+            output.push_back('\n');
+        }
+        return output;
+    }
 }
 
 int main(int argc, char **argv)
@@ -119,6 +144,12 @@ int main(int argc, char **argv)
             {
                 std::cout << '\n';
             }
+        }
+
+        const std::string blargg_memory_output = BlarggMemoryOutput(memory);
+        if (!blargg_memory_output.empty())
+        {
+            std::cout << blargg_memory_output;
         }
     }
     catch (const std::exception &error)
