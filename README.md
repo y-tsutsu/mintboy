@@ -39,6 +39,21 @@ $ ./build/mintboy_headless path/to/test.gb 60
 
 The optional frame count defaults to 60. The command fails if the CPU hits an invalid or unimplemented opcode, and otherwise prints the final framebuffer hash, CPU PC, and serial output. This is useful for Blargg-style test ROMs that report `Passed` through the Game Boy serial port.
 
+Blargg's Game Boy test ROMs can be used as an external test suite:
+
+- GitHub mirror: https://github.com/retrio/gb-test-roms
+- Upstream archive noted by the mirror: http://blargg.8bitalley.com/parodius/gb-tests/
+
+Keep these ROMs outside the repository history, for example under the ignored `rom/tests/` directory:
+
+```console
+$ mkdir -p rom/tests
+$ git clone https://github.com/retrio/gb-test-roms.git rom/tests/gb-test-roms
+$ ./build/mintboy_headless "rom/tests/gb-test-roms/cpu_instrs/individual/01-special.gb" 600
+```
+
+The test ROM collection is intentionally not vendored or added as a git submodule here because its licensing terms are not clearly documented in the mirror.
+
 ## SDL2 frontend
 
 When SDL2 is available, the `mintboy` executable opens an SDL2 window:
