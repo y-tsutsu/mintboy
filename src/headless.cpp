@@ -51,6 +51,7 @@ int main(int argc, char **argv)
         mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(argv[1]);
         mintboy::Memory memory(cartridge);
         mintboy::Cpu cpu(memory);
+        std::string serial_output;
 
         for (int frame = 0; frame < frames; ++frame)
         {
@@ -60,12 +61,22 @@ int main(int argc, char **argv)
                 cycles += cpu.Step();
             }
             [[maybe_unused]] const auto audio_samples = memory.DrainAudioSamples();
+            serial_output += memory.DrainSerialOutput();
         }
 
         std::cout << "Title: " << cartridge.Title() << '\n';
         std::cout << "Frames: " << frames << '\n';
         std::cout << std::format("Framebuffer hash: 0x{:016X}\n", FramebufferHash(memory.GetFramebuffer()));
         std::cout << "CPU PC: " << std::format("0x{:04X}", cpu.GetRegisters().pc) << '\n';
+        if (!serial_output.empty())
+        {
+            std::cout << "Serial output:\n"
+                      << serial_output;
+            if (serial_output.back() != '\n')
+            {
+                std::cout << '\n';
+            }
+        }
     }
     catch (const std::exception &error)
     {

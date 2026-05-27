@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace mintboy
@@ -37,6 +38,7 @@ namespace mintboy
         void WriteByte(Word address, Byte value);
         void Tick(int cycles);
         [[nodiscard]] std::vector<float> DrainAudioSamples();
+        [[nodiscard]] std::string DrainSerialOutput();
 
     private:
         [[nodiscard]] Byte ReadJoypad() const;
@@ -55,6 +57,7 @@ namespace mintboy
 
         Cartridge &cartridge_;
         Apu apu_{};
+        std::string serial_output_;
         std::array<Byte, 0x2000> video_ram_{};
         std::array<Byte, 0x2000> work_ram_{};
         std::array<Byte, 0xA0> oam_{};

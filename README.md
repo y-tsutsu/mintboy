@@ -37,7 +37,7 @@ The `mintboy_headless` executable runs a ROM without opening an SDL2 window. It 
 $ ./build/mintboy_headless path/to/test.gb 60
 ```
 
-The optional frame count defaults to 60. The command fails if the CPU hits an invalid or unimplemented opcode, and otherwise prints the final framebuffer hash and CPU PC.
+The optional frame count defaults to 60. The command fails if the CPU hits an invalid or unimplemented opcode, and otherwise prints the final framebuffer hash, CPU PC, and serial output. This is useful for Blargg-style test ROMs that report `Passed` through the Game Boy serial port.
 
 ## SDL2 frontend
 

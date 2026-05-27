@@ -9,6 +9,8 @@ namespace mintboy
     namespace
     {
         constexpr Word JoypadAddress = 0xFF00;
+        constexpr Word SerialDataAddress = 0xFF01;
+        constexpr Word SerialControlAddress = 0xFF02;
         constexpr Word DividerAddress = 0xFF04;
         constexpr Word TimerCounterAddress = 0xFF05;
         constexpr Word TimerModuloAddress = 0xFF06;
@@ -173,6 +175,17 @@ namespace mintboy
                 return;
             }
 
+            if (address == SerialControlAddress)
+            {
+                io_registers_[SerialControlAddress - 0xFF00] = value;
+                if (value == 0x81)
+                {
+                    serial_output_.push_back(static_cast<char>(io_registers_[SerialDataAddress - 0xFF00]));
+                    io_registers_[SerialControlAddress - 0xFF00] = 0x01;
+                }
+                return;
+            }
+
             if (address == DividerAddress)
             {
                 io_registers_[DividerAddress - 0xFF00] = 0;
@@ -330,6 +343,13 @@ namespace mintboy
     std::vector<float> Memory::DrainAudioSamples()
     {
         return apu_.DrainSamples();
+    }
+
+    std::string Memory::DrainSerialOutput()
+    {
+        std::string output;
+        output.swap(serial_output_);
+        return output;
     }
 
     void Memory::TickTimer(int cycles)

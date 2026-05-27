@@ -75,6 +75,21 @@ MINTBOY_TEST(memory_maps_apu_registers)
     MINTBOY_REQUIRE(memory.ReadByte(0xFF12) == 0xF3);
 }
 
+MINTBOY_TEST(memory_captures_serial_transfer_output)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF01, 'O');
+    memory.WriteByte(0xFF02, 0x81);
+    memory.WriteByte(0xFF01, 'K');
+    memory.WriteByte(0xFF02, 0x81);
+
+    MINTBOY_REQUIRE(memory.DrainSerialOutput() == "OK");
+    MINTBOY_REQUIRE(memory.DrainSerialOutput().empty());
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF02) == 0x01);
+}
+
 MINTBOY_TEST(memory_reads_joypad_direction_buttons)
 {
     mintboy::Cartridge cartridge = MakeCartridge();
