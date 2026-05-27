@@ -18,7 +18,7 @@ MINTBOY_TEST(apu_starts_disabled)
 {
     mintboy::Apu apu;
 
-    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0x00);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0x70);
     MINTBOY_REQUIRE(apu.ReadByte(0xFF12) == 0x00);
 }
 
@@ -39,7 +39,7 @@ MINTBOY_TEST(apu_stores_registers_while_enabled)
     apu.WriteByte(0xFF24, 0x77);
     apu.WriteByte(0xFF30, 0xA5);
 
-    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0x80);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF0);
     MINTBOY_REQUIRE(apu.ReadByte(0xFF12) == 0xF3);
     MINTBOY_REQUIRE(apu.ReadByte(0xFF24) == 0x77);
     MINTBOY_REQUIRE(apu.ReadByte(0xFF30) == 0xA5);
@@ -53,8 +53,48 @@ MINTBOY_TEST(apu_clears_registers_when_disabled)
     apu.WriteByte(0xFF12, 0xF3);
     apu.WriteByte(0xFF26, 0x00);
 
-    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0x00);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0x70);
     MINTBOY_REQUIRE(apu.ReadByte(0xFF12) == 0x00);
+}
+
+MINTBOY_TEST(apu_reads_control_channel_status_bits)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF0);
+
+    apu.WriteByte(0xFF11, 0x80);
+    apu.WriteByte(0xFF12, 0xF0);
+    apu.WriteByte(0xFF14, 0x80);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF1);
+
+    apu.WriteByte(0xFF12, 0x00);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF0);
+}
+
+MINTBOY_TEST(apu_masks_register_reads)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF10, 0x12);
+    apu.WriteByte(0xFF11, 0x80);
+    apu.WriteByte(0xFF13, 0x34);
+    apu.WriteByte(0xFF14, 0x01);
+    apu.WriteByte(0xFF1A, 0x80);
+    apu.WriteByte(0xFF1B, 0x56);
+    apu.WriteByte(0xFF1C, 0x20);
+    apu.WriteByte(0xFF27, 0x00);
+
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF10) == 0x92);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF11) == 0xBF);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF13) == 0xFF);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF14) == 0xBF);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF1A) == 0xFF);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF1B) == 0xFF);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF1C) == 0xBF);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF27) == 0xFF);
 }
 
 MINTBOY_TEST(apu_generates_square_channel_samples)
@@ -160,7 +200,7 @@ MINTBOY_TEST(apu_updates_square_channel_volume_envelope)
                                 { return sample > 0.05F || sample < -0.05F; }));
 }
 
-MINTBOY_TEST(apu_updates_channel1_frequency_sweep)
+MINTBOY_TEST(apu_disables_channel1_when_frequency_sweep_overflows)
 {
     mintboy::Apu apu;
 
@@ -171,12 +211,9 @@ MINTBOY_TEST(apu_updates_channel1_frequency_sweep)
     apu.WriteByte(0xFF11, 0x80);
     apu.WriteByte(0xFF12, 0xF0);
     apu.WriteByte(0xFF13, 0x00);
-    apu.WriteByte(0xFF14, 0x81);
+    apu.WriteByte(0xFF14, 0x87);
 
-    apu.Tick(8192 * 3);
-
-    MINTBOY_REQUIRE(apu.ReadByte(0xFF13) == 0x80);
-    MINTBOY_REQUIRE((apu.ReadByte(0xFF14) & 0x07) == 0x01);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF0);
 }
 
 MINTBOY_TEST(apu_generates_noise_channel_samples)

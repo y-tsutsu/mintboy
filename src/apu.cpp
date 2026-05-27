@@ -12,7 +12,12 @@ namespace mintboy
             return 0xFF;
         }
 
-        return registers_[RegisterIndex(address)];
+        if (address == ControlAddress)
+        {
+            return ReadControl();
+        }
+
+        return ReadRegister(address);
     }
 
     void Apu::WriteByte(Word address, Byte value)
@@ -129,6 +134,68 @@ namespace mintboy
     std::size_t Apu::RegisterIndex(Word address)
     {
         return address - RegisterStart;
+    }
+
+    Byte Apu::ReadControl() const
+    {
+        Byte value = static_cast<Byte>(0x70 | (registers_[RegisterIndex(ControlAddress)] & 0x80));
+        if (square1_.enabled)
+        {
+            value |= 0x01;
+        }
+        if (square2_.enabled)
+        {
+            value |= 0x02;
+        }
+        if (wave_.enabled)
+        {
+            value |= 0x04;
+        }
+        if (noise_.enabled)
+        {
+            value |= 0x08;
+        }
+        return value;
+    }
+
+    Byte Apu::ReadRegister(Word address) const
+    {
+        const Byte value = registers_[RegisterIndex(address)];
+        switch (address)
+        {
+        case 0xFF10:
+            return static_cast<Byte>(value | 0x80);
+        case 0xFF11:
+        case 0xFF16:
+            return static_cast<Byte>(value | 0x3F);
+        case 0xFF13:
+        case 0xFF18:
+        case 0xFF1B:
+        case 0xFF1D:
+        case 0xFF20:
+            return 0xFF;
+        case 0xFF14:
+        case 0xFF19:
+        case 0xFF1E:
+        case 0xFF23:
+            return static_cast<Byte>(value | 0xBF);
+        case 0xFF1A:
+            return static_cast<Byte>(value | 0x7F);
+        case 0xFF1C:
+            return static_cast<Byte>(value | 0x9F);
+        case 0xFF27:
+        case 0xFF28:
+        case 0xFF29:
+        case 0xFF2A:
+        case 0xFF2B:
+        case 0xFF2C:
+        case 0xFF2D:
+        case 0xFF2E:
+        case 0xFF2F:
+            return 0xFF;
+        default:
+            return value;
+        }
     }
 
     bool Apu::IsEnabled() const
