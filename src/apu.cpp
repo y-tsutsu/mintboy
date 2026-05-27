@@ -50,6 +50,7 @@ namespace mintboy
             return;
         }
 
+        const Byte old_value = registers_[RegisterIndex(address)];
         registers_[RegisterIndex(address)] = value;
         if (address == 0xFF12 && !IsSquareDacEnabled(0xFF12))
         {
@@ -67,6 +68,8 @@ namespace mintboy
         {
             noise_.enabled = false;
         }
+
+        ClockLengthOnEnable(address, old_value, value);
 
         if (address == 0xFF14 && (value & 0x80) != 0)
         {
@@ -349,6 +352,37 @@ namespace mintboy
     bool Apu::IsNoiseDacEnabled() const
     {
         return (registers_[RegisterIndex(0xFF21)] & 0xF8) != 0;
+    }
+
+    bool Apu::ShouldClockLengthImmediately() const
+    {
+        return (frame_sequencer_step_ & 0x01) != 0;
+    }
+
+    void Apu::ClockLengthOnEnable(Word address, Byte old_value, Byte new_value)
+    {
+        if ((old_value & 0x40) != 0 || (new_value & 0x40) == 0 || !ShouldClockLengthImmediately())
+        {
+            return;
+        }
+
+        switch (address)
+        {
+        case 0xFF14:
+            TickLength(square1_, 0xFF14);
+            break;
+        case 0xFF19:
+            TickLength(square2_, 0xFF19);
+            break;
+        case 0xFF1E:
+            TickWaveLength();
+            break;
+        case 0xFF23:
+            TickNoiseLength();
+            break;
+        default:
+            break;
+        }
     }
 
     void Apu::TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address)

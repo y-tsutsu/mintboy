@@ -182,6 +182,39 @@ MINTBOY_TEST(apu_stops_square_channel_when_length_expires)
     MINTBOY_REQUIRE(!HasNonZeroSample(apu.DrainSamples()));
 }
 
+MINTBOY_TEST(apu_clocks_square_length_when_length_enable_is_set_between_length_steps)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF24, 0x77);
+    apu.WriteByte(0xFF25, 0x11);
+    apu.WriteByte(0xFF11, 0xBF);
+    apu.WriteByte(0xFF12, 0xF0);
+    apu.WriteByte(0xFF14, 0x80);
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF1);
+
+    apu.Tick(8192);
+    apu.WriteByte(0xFF14, 0x40);
+
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF0);
+}
+
+MINTBOY_TEST(apu_keeps_square_running_when_length_enable_is_set_on_length_step)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF24, 0x77);
+    apu.WriteByte(0xFF25, 0x11);
+    apu.WriteByte(0xFF11, 0xBF);
+    apu.WriteByte(0xFF12, 0xF0);
+    apu.WriteByte(0xFF14, 0x80);
+    apu.WriteByte(0xFF14, 0x40);
+
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF1);
+}
+
 MINTBOY_TEST(apu_updates_square_channel_volume_envelope)
 {
     mintboy::Apu apu;
