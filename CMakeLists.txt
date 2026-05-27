@@ -82,3 +82,32 @@ add_executable(mintboy_tests
 target_link_libraries(mintboy_tests PRIVATE mintboy_core)
 
 add_test(NAME mintboy_tests COMMAND mintboy_tests)
+
+set(MINTBOY_BLARGG_CPU_TEST_DIR "${PROJECT_SOURCE_DIR}/rom/tests/gb-test-roms/cpu_instrs/individual")
+if(EXISTS "${MINTBOY_BLARGG_CPU_TEST_DIR}")
+    function(add_blargg_cpu_test test_name frames)
+        add_test(
+            NAME "blargg_cpu_${test_name}"
+            COMMAND
+                ${CMAKE_COMMAND}
+                "-DMINTBOY_HEADLESS=$<TARGET_FILE:mintboy_headless>"
+                "-DMINTBOY_ROM=${MINTBOY_BLARGG_CPU_TEST_DIR}/${test_name}.gb"
+                "-DMINTBOY_FRAMES=${frames}"
+                -P "${PROJECT_SOURCE_DIR}/cmake/RunHeadlessTest.cmake"
+        )
+    endfunction()
+
+    add_blargg_cpu_test("01-special" 600)
+    add_blargg_cpu_test("02-interrupts" 600)
+    add_blargg_cpu_test("03-op sp,hl" 600)
+    add_blargg_cpu_test("04-op r,imm" 600)
+    add_blargg_cpu_test("05-op rp" 600)
+    add_blargg_cpu_test("06-ld r,r" 600)
+    add_blargg_cpu_test("07-jr,jp,call,ret,rst" 600)
+    add_blargg_cpu_test("08-misc instrs" 600)
+    add_blargg_cpu_test("09-op r,r" 600)
+    add_blargg_cpu_test("10-bit ops" 3000)
+    add_blargg_cpu_test("11-op a,(hl)" 3000)
+else()
+    message(STATUS "Blargg CPU test ROMs were not found; skipping external ROM tests")
+endif()
