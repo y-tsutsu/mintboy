@@ -30,6 +30,7 @@ add_executable(mintboy_headless src/headless.cpp)
 target_link_libraries(mintboy_headless PRIVATE mintboy_core)
 
 option(MINTBOY_BUILD_SDL "Build the SDL2 frontend when SDL2 is available" ON)
+option(MINTBOY_ENABLE_KNOWN_FAILING_ROM_TESTS "Register external ROM tests that are expected to fail with the current emulator" OFF)
 
 if(MINTBOY_BUILD_SDL)
     find_package(SDL2 CONFIG QUIET)
@@ -83,17 +84,26 @@ target_link_libraries(mintboy_tests PRIVATE mintboy_core)
 
 add_test(NAME mintboy_tests COMMAND mintboy_tests)
 
-set(MINTBOY_BLARGG_CPU_TEST_DIR "${PROJECT_SOURCE_DIR}/rom/tests/gb-test-roms/cpu_instrs/individual")
+function(add_headless_rom_test test_name rom_path frames)
+    add_test(
+        NAME "${test_name}"
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DMINTBOY_HEADLESS=$<TARGET_FILE:mintboy_headless>"
+            "-DMINTBOY_ROM=${rom_path}"
+            "-DMINTBOY_FRAMES=${frames}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/RunHeadlessTest.cmake"
+    )
+endfunction()
+
+set(MINTBOY_BLARGG_TEST_DIR "${PROJECT_SOURCE_DIR}/rom/tests/gb-test-roms")
+set(MINTBOY_BLARGG_CPU_TEST_DIR "${MINTBOY_BLARGG_TEST_DIR}/cpu_instrs/individual")
 if(EXISTS "${MINTBOY_BLARGG_CPU_TEST_DIR}")
     function(add_blargg_cpu_test test_name frames)
-        add_test(
-            NAME "blargg_cpu_${test_name}"
-            COMMAND
-                ${CMAKE_COMMAND}
-                "-DMINTBOY_HEADLESS=$<TARGET_FILE:mintboy_headless>"
-                "-DMINTBOY_ROM=${MINTBOY_BLARGG_CPU_TEST_DIR}/${test_name}.gb"
-                "-DMINTBOY_FRAMES=${frames}"
-                -P "${PROJECT_SOURCE_DIR}/cmake/RunHeadlessTest.cmake"
+        add_headless_rom_test(
+            "blargg_cpu_${test_name}"
+            "${MINTBOY_BLARGG_CPU_TEST_DIR}/${test_name}.gb"
+            "${frames}"
         )
     endfunction()
 
@@ -110,4 +120,20 @@ if(EXISTS "${MINTBOY_BLARGG_CPU_TEST_DIR}")
     add_blargg_cpu_test("11-op a,(hl)" 3000)
 else()
     message(STATUS "Blargg CPU test ROMs were not found; skipping external ROM tests")
+endif()
+
+set(MINTBOY_BLARGG_INSTR_TIMING_ROM "${MINTBOY_BLARGG_TEST_DIR}/instr_timing/instr_timing.gb")
+if(EXISTS "${MINTBOY_BLARGG_INSTR_TIMING_ROM}")
+    add_headless_rom_test("blargg_instr_timing" "${MINTBOY_BLARGG_INSTR_TIMING_ROM}" 1200)
+else()
+    message(STATUS "Blargg instruction timing test ROM was not found; skipping external instruction timing test")
+endif()
+
+set(MINTBOY_BLARGG_MEM_TIMING_TEST_DIR "${MINTBOY_BLARGG_TEST_DIR}/mem_timing/individual")
+if(MINTBOY_ENABLE_KNOWN_FAILING_ROM_TESTS AND EXISTS "${MINTBOY_BLARGG_MEM_TIMING_TEST_DIR}")
+    add_headless_rom_test("blargg_mem_timing_01-read_timing" "${MINTBOY_BLARGG_MEM_TIMING_TEST_DIR}/01-read_timing.gb" 1200)
+    add_headless_rom_test("blargg_mem_timing_02-write_timing" "${MINTBOY_BLARGG_MEM_TIMING_TEST_DIR}/02-write_timing.gb" 1200)
+    add_headless_rom_test("blargg_mem_timing_03-modify_timing" "${MINTBOY_BLARGG_MEM_TIMING_TEST_DIR}/03-modify_timing.gb" 1200)
+elseif(MINTBOY_ENABLE_KNOWN_FAILING_ROM_TESTS)
+    message(STATUS "Blargg memory timing test ROMs were not found; skipping known-failing external memory timing tests")
 endif()
