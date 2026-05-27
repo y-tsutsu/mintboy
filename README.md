@@ -29,6 +29,16 @@ $ ctest --test-dir build --output-on-failure
 
 The Debian 13 package is available as `libsdl2-dev`. If SDL2 is not installed, CMake still builds the CLI fallback and tests. The `mintboy_info` executable prints ROM header information.
 
+## Headless smoke test
+
+The `mintboy_headless` executable runs a ROM without opening an SDL2 window. It is useful for quick regression checks while emulator accuracy is still evolving:
+
+```console
+$ ./build/mintboy_headless path/to/test.gb 60
+```
+
+The optional frame count defaults to 60. The command fails if the CPU hits an invalid or unimplemented opcode, and otherwise prints the final framebuffer hash and CPU PC.
+
 ## SDL2 frontend
 
 When SDL2 is available, the `mintboy` executable opens an SDL2 window:

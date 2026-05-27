@@ -26,6 +26,9 @@ target_compile_options(mintboy_core
 add_executable(mintboy_info src/main.cpp)
 target_link_libraries(mintboy_info PRIVATE mintboy_core)
 
+add_executable(mintboy_headless src/headless.cpp)
+target_link_libraries(mintboy_headless PRIVATE mintboy_core)
+
 option(MINTBOY_BUILD_SDL "Build the SDL2 frontend when SDL2 is available" ON)
 
 if(MINTBOY_BUILD_SDL)
