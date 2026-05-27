@@ -67,4 +67,5 @@ vcpkg_installed/
 Testing/
 .cache/
 
-rom/
+rom/*
+!rom/.gitkeep
