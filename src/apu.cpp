@@ -95,13 +95,16 @@ namespace mintboy
             const bool reloaded_length = square1_.length_counter == 0;
             TriggerSquare(square1_, 0xFF12);
             square1_.sweep_shadow_frequency = SquareFrequency(0xFF13, 0xFF14);
-            square1_.sweep_timer = ((registers_[RegisterIndex(0xFF10)] >> 4) & 0x07);
-            if (square1_.sweep_timer == 0)
+            const Byte sweep = registers_[RegisterIndex(0xFF10)];
+            const int sweep_period = (sweep >> 4) & 0x07;
+            const int sweep_shift = sweep & 0x07;
+            square1_.sweep_timer = sweep_period;
+            if (sweep_period == 0)
             {
                 square1_.sweep_timer = 8;
             }
-            square1_.sweep_enabled = (((registers_[RegisterIndex(0xFF10)] >> 4) & 0x07) != 0) || ((registers_[RegisterIndex(0xFF10)] & 0x07) != 0);
-            if ((registers_[RegisterIndex(0xFF10)] & 0x07) != 0 && CalculateSweepFrequency() > 2047)
+            square1_.sweep_enabled = sweep_period != 0 || sweep_shift != 0;
+            if (sweep_shift != 0 && CalculateSweepFrequency() > 2047)
             {
                 square1_.enabled = false;
             }
@@ -489,15 +492,15 @@ namespace mintboy
         }
 
         const int shift = registers_[RegisterIndex(0xFF10)] & 0x07;
-        if (shift == 0)
-        {
-            return;
-        }
-
         const int frequency = CalculateSweepFrequency();
         if (frequency > 2047)
         {
             square1_.enabled = false;
+            return;
+        }
+
+        if (shift == 0)
+        {
             return;
         }
 
