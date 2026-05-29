@@ -32,6 +32,7 @@ namespace mintboy
             int sweep_shadow_frequency = 0;
             int sweep_timer = 0;
             bool sweep_enabled = false;
+            bool sweep_negate_calculated = false;
         };
 
         struct NoiseChannel

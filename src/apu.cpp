@@ -88,6 +88,11 @@ namespace mintboy
             noise_.enabled = false;
         }
 
+        if (address == 0xFF10 && (old_value & 0x08) != 0 && (value & 0x08) == 0 && square1_.sweep_negate_calculated)
+        {
+            square1_.enabled = false;
+        }
+
         ClockLengthOnEnable(address, old_value, value);
 
         if (address == 0xFF14 && (value & 0x80) != 0)
@@ -103,10 +108,19 @@ namespace mintboy
             {
                 square1_.sweep_timer = 8;
             }
+            square1_.sweep_negate_calculated = false;
             square1_.sweep_enabled = sweep_period != 0 || sweep_shift != 0;
             if (sweep_shift != 0 && CalculateSweepFrequency() > 2047)
             {
+                if ((sweep & 0x08) != 0)
+                {
+                    square1_.sweep_negate_calculated = true;
+                }
                 square1_.enabled = false;
+            }
+            else if (sweep_shift != 0 && (sweep & 0x08) != 0)
+            {
+                square1_.sweep_negate_calculated = true;
             }
             if (reloaded_length && (value & 0x40) != 0 && ShouldClockLengthImmediately() && square1_.length_counter > 0)
             {
@@ -493,6 +507,10 @@ namespace mintboy
 
         const int shift = registers_[RegisterIndex(0xFF10)] & 0x07;
         const int frequency = CalculateSweepFrequency();
+        if ((registers_[RegisterIndex(0xFF10)] & 0x08) != 0)
+        {
+            square1_.sweep_negate_calculated = true;
+        }
         if (frequency > 2047)
         {
             square1_.enabled = false;
