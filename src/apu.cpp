@@ -32,7 +32,7 @@ namespace mintboy
             registers_[RegisterIndex(address)] = static_cast<Byte>(value & 0x80);
             if ((value & 0x80) == 0)
             {
-                registers_.fill(0);
+                std::fill(registers_.begin(), registers_.begin() + RegisterIndex(0xFF30), 0);
                 square1_ = {};
                 square2_ = {};
                 wave_ = {};
@@ -45,7 +45,7 @@ namespace mintboy
             return;
         }
 
-        if ((registers_[RegisterIndex(ControlAddress)] & 0x80) == 0 && address != 0xFF26)
+        if ((registers_[RegisterIndex(ControlAddress)] & 0x80) == 0 && address < 0xFF30)
         {
             return;
         }
@@ -172,7 +172,9 @@ namespace mintboy
         case 0xFF16:
             return static_cast<Byte>(value | 0x3F);
         case 0xFF13:
+        case 0xFF15:
         case 0xFF18:
+        case 0xFF1F:
         case 0xFF1B:
         case 0xFF1D:
         case 0xFF20:
