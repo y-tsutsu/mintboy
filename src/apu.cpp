@@ -92,6 +92,7 @@ namespace mintboy
 
         if (address == 0xFF14 && (value & 0x80) != 0)
         {
+            const bool reloaded_length = square1_.length_counter == 0;
             TriggerSquare(square1_, 0xFF12);
             square1_.sweep_shadow_frequency = SquareFrequency(0xFF13, 0xFF14);
             square1_.sweep_timer = ((registers_[RegisterIndex(0xFF10)] >> 4) & 0x07);
@@ -104,31 +105,34 @@ namespace mintboy
             {
                 square1_.enabled = false;
             }
-            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && square1_.length_counter > 0)
+            if (reloaded_length && (value & 0x40) != 0 && ShouldClockLengthImmediately() && square1_.length_counter > 0)
             {
                 TickLength(square1_, 0xFF14);
             }
         }
         else if (address == 0xFF19 && (value & 0x80) != 0)
         {
+            const bool reloaded_length = square2_.length_counter == 0;
             TriggerSquare(square2_, 0xFF17);
-            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && square2_.length_counter > 0)
+            if (reloaded_length && (value & 0x40) != 0 && ShouldClockLengthImmediately() && square2_.length_counter > 0)
             {
                 TickLength(square2_, 0xFF19);
             }
         }
         else if (address == 0xFF1E && (value & 0x80) != 0)
         {
+            const bool reloaded_length = wave_.length_counter == 0;
             TriggerWave();
-            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && wave_.length_counter > 0)
+            if (reloaded_length && (value & 0x40) != 0 && ShouldClockLengthImmediately() && wave_.length_counter > 0)
             {
                 TickWaveLength();
             }
         }
         else if (address == 0xFF23 && (value & 0x80) != 0)
         {
+            const bool reloaded_length = noise_.length_counter == 0;
             TriggerNoise();
-            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && noise_.length_counter > 0)
+            if (reloaded_length && (value & 0x40) != 0 && ShouldClockLengthImmediately() && noise_.length_counter > 0)
             {
                 TickNoiseLength();
             }
