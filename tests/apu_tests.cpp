@@ -59,6 +59,24 @@ MINTBOY_TEST(apu_clears_registers_when_disabled)
     MINTBOY_REQUIRE(apu.ReadByte(0xFF30) == 0xA5);
 }
 
+MINTBOY_TEST(apu_preserves_length_counters_when_disabled)
+{
+    mintboy::Apu apu;
+
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF26, 0x00);
+    apu.WriteByte(0xFF11, 0x3F);
+    apu.Tick(8192 * 4);
+    apu.WriteByte(0xFF26, 0x80);
+    apu.WriteByte(0xFF12, 0xF0);
+    apu.WriteByte(0xFF14, 0xC0);
+
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF1);
+    apu.Tick(8192);
+
+    MINTBOY_REQUIRE(apu.ReadByte(0xFF26) == 0xF0);
+}
+
 MINTBOY_TEST(apu_allows_wave_ram_writes_while_disabled)
 {
     mintboy::Apu apu;

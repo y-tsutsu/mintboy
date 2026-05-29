@@ -32,11 +32,19 @@ namespace mintboy
             registers_[RegisterIndex(address)] = static_cast<Byte>(value & 0x80);
             if ((value & 0x80) == 0)
             {
+                const int square1_length = square1_.length_counter;
+                const int square2_length = square2_.length_counter;
+                const int wave_length = wave_.length_counter;
+                const int noise_length = noise_.length_counter;
                 std::fill(registers_.begin(), registers_.begin() + RegisterIndex(0xFF30), 0);
                 square1_ = {};
                 square2_ = {};
                 wave_ = {};
                 noise_ = {};
+                square1_.length_counter = square1_length;
+                square2_.length_counter = square2_length;
+                wave_.length_counter = wave_length;
+                noise_.length_counter = noise_length;
                 frame_sequencer_cycles_ = 0;
                 frame_sequencer_step_ = 0;
                 sample_cycles_ = 0.0;
@@ -47,6 +55,23 @@ namespace mintboy
 
         if ((registers_[RegisterIndex(ControlAddress)] & 0x80) == 0 && address < 0xFF30)
         {
+            if (address == 0xFF11)
+            {
+                square1_.length_counter = (value & 0x3F) == 0 ? 64 : 64 - (value & 0x3F);
+            }
+            else if (address == 0xFF16)
+            {
+                square2_.length_counter = (value & 0x3F) == 0 ? 64 : 64 - (value & 0x3F);
+            }
+            else if (address == 0xFF1B)
+            {
+                wave_.length_counter = value == 0 ? 256 : 256 - value;
+            }
+            else if (address == 0xFF20)
+            {
+                const int length_load = value & 0x3F;
+                noise_.length_counter = length_load == 0 ? 64 : 64 - length_load;
+            }
             return;
         }
 
