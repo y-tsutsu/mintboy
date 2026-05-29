@@ -582,6 +582,11 @@ namespace mintboy
 
     void Apu::TriggerWave()
     {
+        if (wave_.enabled && wave_.last_access_cycle == apu_cycles_)
+        {
+            CorruptWaveRamOnRetrigger();
+        }
+
         wave_.enabled = IsWaveDacEnabled();
         wave_.sample_index = 0;
         wave_.last_access_cycle = -1;
@@ -593,6 +598,23 @@ namespace mintboy
         if (wave_.length_counter == 0)
         {
             wave_.length_counter = 256;
+        }
+    }
+
+    void Apu::CorruptWaveRamOnRetrigger()
+    {
+        const int byte_index = ((wave_.sample_index + 31) & 0x1F) / 2;
+        if (byte_index < 4)
+        {
+            registers_[RegisterIndex(0xFF30)] = wave_.previous_byte;
+            return;
+        }
+
+        const int aligned_byte_index = byte_index & ~0x03;
+        for (int offset = 0; offset < 4; ++offset)
+        {
+            registers_[RegisterIndex(static_cast<Word>(0xFF30 + offset))] =
+                registers_[RegisterIndex(static_cast<Word>(0xFF30 + aligned_byte_index + offset))];
         }
     }
 

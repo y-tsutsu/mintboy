@@ -82,6 +82,7 @@ namespace mintboy
         void WriteSquareFrequency(Word frequency_low_address, Word frequency_high_address, int frequency);
         [[nodiscard]] int CalculateSweepFrequency() const;
         void TickSweep();
+        void CorruptWaveRamOnRetrigger();
         void TriggerWave();
         void TriggerNoise();
         void TickWaveTimer(int cycles);
