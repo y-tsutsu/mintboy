@@ -52,6 +52,25 @@ namespace mintboy
 
         const Byte old_value = registers_[RegisterIndex(address)];
         registers_[RegisterIndex(address)] = value;
+        if (address == 0xFF11)
+        {
+            ReloadSquareLength(square1_, 0xFF11);
+        }
+        else if (address == 0xFF16)
+        {
+            ReloadSquareLength(square2_, 0xFF16);
+        }
+        else if (address == 0xFF1B)
+        {
+            const int length_load = registers_[RegisterIndex(0xFF1B)];
+            wave_.length_counter = length_load == 0 ? 256 : 256 - length_load;
+        }
+        else if (address == 0xFF20)
+        {
+            const int length_load = registers_[RegisterIndex(0xFF20)] & 0x3F;
+            noise_.length_counter = length_load == 0 ? 64 : 64 - length_load;
+        }
+
         if (address == 0xFF12 && !IsSquareDacEnabled(0xFF12))
         {
             square1_.enabled = false;
@@ -73,7 +92,7 @@ namespace mintboy
 
         if (address == 0xFF14 && (value & 0x80) != 0)
         {
-            TriggerSquare(square1_, 0xFF11, 0xFF12);
+            TriggerSquare(square1_, 0xFF12);
             square1_.sweep_shadow_frequency = SquareFrequency(0xFF13, 0xFF14);
             square1_.sweep_timer = ((registers_[RegisterIndex(0xFF10)] >> 4) & 0x07);
             if (square1_.sweep_timer == 0)
@@ -85,18 +104,34 @@ namespace mintboy
             {
                 square1_.enabled = false;
             }
+            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && square1_.length_counter > 0)
+            {
+                TickLength(square1_, 0xFF14);
+            }
         }
         else if (address == 0xFF19 && (value & 0x80) != 0)
         {
-            TriggerSquare(square2_, 0xFF16, 0xFF17);
+            TriggerSquare(square2_, 0xFF17);
+            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && square2_.length_counter > 0)
+            {
+                TickLength(square2_, 0xFF19);
+            }
         }
         else if (address == 0xFF1E && (value & 0x80) != 0)
         {
             TriggerWave();
+            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && wave_.length_counter > 0)
+            {
+                TickWaveLength();
+            }
         }
         else if (address == 0xFF23 && (value & 0x80) != 0)
         {
             TriggerNoise();
+            if ((value & 0x40) != 0 && ShouldClockLengthImmediately() && noise_.length_counter > 0)
+            {
+                TickNoiseLength();
+            }
         }
     }
 
@@ -387,13 +422,21 @@ namespace mintboy
         }
     }
 
-    void Apu::TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address)
+    void Apu::ReloadSquareLength(SquareChannel &channel, Word duty_address)
     {
         const Byte duty_register = registers_[RegisterIndex(duty_address)];
         const int length_load = duty_register & 0x3F;
+        channel.length_counter = length_load == 0 ? 64 : 64 - length_load;
+    }
+
+    void Apu::TriggerSquare(SquareChannel &channel, Word volume_address)
+    {
         channel.enabled = IsSquareDacEnabled(volume_address);
         channel.phase = 0.0;
-        channel.length_counter = length_load == 0 ? 64 : 64 - length_load;
+        if (channel.length_counter == 0)
+        {
+            channel.length_counter = 64;
+        }
         channel.volume = registers_[RegisterIndex(volume_address)] >> 4;
         const int envelope_period = registers_[RegisterIndex(volume_address)] & 0x07;
         channel.envelope_timer = envelope_period == 0 ? 8 : envelope_period;
@@ -464,20 +507,23 @@ namespace mintboy
 
     void Apu::TriggerWave()
     {
-        const int length_load = registers_[RegisterIndex(0xFF1B)];
         wave_.enabled = IsWaveDacEnabled();
         wave_.position = 0.0;
-        wave_.length_counter = length_load == 0 ? 256 : 256 - length_load;
+        if (wave_.length_counter == 0)
+        {
+            wave_.length_counter = 256;
+        }
     }
 
     void Apu::TriggerNoise()
     {
-        const Byte length_register = registers_[RegisterIndex(0xFF20)];
-        const int length_load = length_register & 0x3F;
         noise_.enabled = IsNoiseDacEnabled();
         noise_.lfsr = 0x7FFF;
         noise_.timer = 0.0;
-        noise_.length_counter = length_load == 0 ? 64 : 64 - length_load;
+        if (noise_.length_counter == 0)
+        {
+            noise_.length_counter = 64;
+        }
         noise_.volume = registers_[RegisterIndex(0xFF21)] >> 4;
         const int envelope_period = registers_[RegisterIndex(0xFF21)] & 0x07;
         noise_.envelope_timer = envelope_period == 0 ? 8 : envelope_period;
@@ -517,7 +563,7 @@ namespace mintboy
 
     void Apu::TickLength(SquareChannel &channel, Word frequency_high_address)
     {
-        if (!channel.enabled || (registers_[RegisterIndex(frequency_high_address)] & 0x40) == 0 || channel.length_counter <= 0)
+        if ((registers_[RegisterIndex(frequency_high_address)] & 0x40) == 0 || channel.length_counter <= 0)
         {
             return;
         }
@@ -531,7 +577,7 @@ namespace mintboy
 
     void Apu::TickWaveLength()
     {
-        if (!wave_.enabled || (registers_[RegisterIndex(0xFF1E)] & 0x40) == 0 || wave_.length_counter <= 0)
+        if ((registers_[RegisterIndex(0xFF1E)] & 0x40) == 0 || wave_.length_counter <= 0)
         {
             return;
         }
@@ -545,7 +591,7 @@ namespace mintboy
 
     void Apu::TickNoiseLength()
     {
-        if (!noise_.enabled || (registers_[RegisterIndex(0xFF23)] & 0x40) == 0 || noise_.length_counter <= 0)
+        if ((registers_[RegisterIndex(0xFF23)] & 0x40) == 0 || noise_.length_counter <= 0)
         {
             return;
         }

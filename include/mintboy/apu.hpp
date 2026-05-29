@@ -65,7 +65,8 @@ namespace mintboy
         [[nodiscard]] bool IsNoiseDacEnabled() const;
         [[nodiscard]] bool ShouldClockLengthImmediately() const;
         void ClockLengthOnEnable(Word address, Byte old_value, Byte new_value);
-        void TriggerSquare(SquareChannel &channel, Word duty_address, Word volume_address);
+        void ReloadSquareLength(SquareChannel &channel, Word duty_address);
+        void TriggerSquare(SquareChannel &channel, Word volume_address);
         [[nodiscard]] int SquareFrequency(Word frequency_low_address, Word frequency_high_address) const;
         void WriteSquareFrequency(Word frequency_low_address, Word frequency_high_address, int frequency);
         [[nodiscard]] int CalculateSweepFrequency() const;
