@@ -793,21 +793,29 @@ namespace mintboy
 
     Byte Cpu::ReadByte(Word address)
     {
+        IdleHalfCycle();
         const Byte value = memory_.ReadByte(address);
-        IdleCycle();
+        IdleHalfCycle();
         return value;
     }
 
     void Cpu::WriteByte(Word address, Byte value)
     {
+        IdleHalfCycle();
         memory_.WriteByte(address, value);
-        IdleCycle();
+        IdleHalfCycle();
     }
 
     void Cpu::IdleCycle()
     {
         memory_.Tick(4);
         elapsed_cycles_ += 4;
+    }
+
+    void Cpu::IdleHalfCycle()
+    {
+        memory_.Tick(2);
+        elapsed_cycles_ += 2;
     }
 
     Byte Cpu::FetchByte()

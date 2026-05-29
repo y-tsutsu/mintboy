@@ -61,6 +61,16 @@ $ cmake -S . -B build
 $ ctest --test-dir build --output-on-failure
 ```
 
+## References
+
+The emulator implementation is cross-checked against public Game Boy hardware references and emulator test discussions:
+
+- Pan Docs: https://gbdev.io/pandocs/
+- Blargg's Game Boy test ROMs mirror: https://github.com/retrio/gb-test-roms
+- Blargg test discussion on nesdev: https://forums.nesdev.org/viewtopic.php?t=13730
+
+Pan Docs is the primary hardware behavior reference. The Blargg ROMs and related discussions are used as executable compatibility checks and as context when a test covers obscure timing behavior.
+
 ## SDL2 frontend
 
 When SDL2 is available, the `mintboy` executable opens an SDL2 window:

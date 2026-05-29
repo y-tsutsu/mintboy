@@ -47,6 +47,7 @@ namespace mintboy
                 noise_.length_counter = noise_length;
                 frame_sequencer_cycles_ = 0;
                 frame_sequencer_step_ = 0;
+                apu_cycles_ = 0;
                 sample_cycles_ = 0.0;
                 pending_samples_.clear();
             }
@@ -111,6 +112,12 @@ namespace mintboy
         else if (address == 0xFF21 && !IsNoiseDacEnabled())
         {
             noise_.enabled = false;
+        }
+
+        if ((address == 0xFF1D || address == 0xFF1E) && wave_.enabled && (address != 0xFF1E || (value & 0x80) == 0))
+        {
+            wave_.pending_frequency_period = WaveFrequencyPeriod();
+            wave_.frequency_period_pending = true;
         }
 
         if (address == 0xFF10 && (old_value & 0x08) != 0 && (value & 0x08) == 0 && square1_.sweep_negate_calculated)
@@ -189,6 +196,8 @@ namespace mintboy
         }
 
         TickFrameSequencer(cycles);
+        TickWaveTimer(cycles);
+        apu_cycles_ += cycles;
 
         sample_cycles_ += cycles;
         constexpr double cycles_per_sample = static_cast<double>(CpuFrequency) / SampleRate;
@@ -220,6 +229,13 @@ namespace mintboy
         return address - RegisterStart;
     }
 
+    int Apu::WaveFrequencyPeriod() const
+    {
+        const int frequency_value = registers_[RegisterIndex(0xFF1D)] |
+                                    ((registers_[RegisterIndex(0xFF1E)] & 0x07) << 8);
+        return frequency_value >= 2048 ? 0 : (2048 - frequency_value) * 2;
+    }
+
     Byte Apu::ReadControl() const
     {
         Byte value = static_cast<Byte>(0x70 | (registers_[RegisterIndex(ControlAddress)] & 0x80));
@@ -245,6 +261,17 @@ namespace mintboy
     Byte Apu::ReadRegister(Word address) const
     {
         const Byte value = registers_[RegisterIndex(address)];
+        if (address >= 0xFF30 && address <= 0xFF3F && wave_.enabled)
+        {
+            // On DMG, CPU wave RAM reads only see CH3's bus value at the
+            // narrow timing point where the channel is fetching wave RAM.
+            if (wave_.last_access_cycle == apu_cycles_ - 2 && wave_.has_previous_byte)
+            {
+                return wave_.previous_byte;
+            }
+            return 0xFF;
+        }
+
         switch (address)
         {
         case 0xFF10:
@@ -372,14 +399,7 @@ namespace mintboy
             return 0.0F;
         }
 
-        const double samples_per_second = 2'097'152.0 / (2048 - frequency_value);
-        wave_.position += samples_per_second / SampleRate;
-        while (wave_.position >= 32.0)
-        {
-            wave_.position -= 32.0;
-        }
-
-        const int sample_index = static_cast<int>(wave_.position);
+        const int sample_index = wave_.sample_index;
         const Byte packed_sample = registers_[RegisterIndex(static_cast<Word>(0xFF30 + (sample_index / 2)))];
         const int sample = (sample_index & 1) == 0 ? packed_sample >> 4 : packed_sample & 0x0F;
         const int volume_code = (registers_[RegisterIndex(0xFF1C)] >> 5) & 0x03;
@@ -420,6 +440,11 @@ namespace mintboy
 
         const float amplitude = static_cast<float>(noise_.volume) / 15.0F;
         return (noise_.lfsr & 0x01) == 0 ? amplitude : -amplitude;
+    }
+
+    Byte Apu::CurrentWaveRamByte() const
+    {
+        return registers_[RegisterIndex(static_cast<Word>(0xFF30 + (wave_.sample_index / 2)))];
     }
 
     bool Apu::IsSquareDacEnabled(Word volume_address) const
@@ -558,7 +583,13 @@ namespace mintboy
     void Apu::TriggerWave()
     {
         wave_.enabled = IsWaveDacEnabled();
-        wave_.position = 0.0;
+        wave_.sample_index = 0;
+        wave_.last_access_cycle = -1;
+        wave_.has_previous_byte = false;
+        wave_.frequency_period = WaveFrequencyPeriod();
+        wave_.pending_frequency_period = wave_.frequency_period;
+        wave_.frequency_period_pending = false;
+        wave_.frequency_timer = wave_.frequency_period;
         if (wave_.length_counter == 0)
         {
             wave_.length_counter = 256;
@@ -577,6 +608,38 @@ namespace mintboy
         noise_.volume = registers_[RegisterIndex(0xFF21)] >> 4;
         const int envelope_period = registers_[RegisterIndex(0xFF21)] & 0x07;
         noise_.envelope_timer = envelope_period == 0 ? 8 : envelope_period;
+    }
+
+    void Apu::TickWaveTimer(int cycles)
+    {
+        if (!wave_.enabled || !IsWaveDacEnabled())
+        {
+            return;
+        }
+
+        if (wave_.frequency_period <= 0)
+        {
+            return;
+        }
+
+        wave_.frequency_timer -= cycles;
+        while (wave_.frequency_timer <= 0)
+        {
+            const int access_cycle = apu_cycles_ + cycles + wave_.frequency_timer;
+            wave_.sample_index = (wave_.sample_index + 1) & 0x1F;
+            // CH3 output is fed by a byte latch; CPU reads during playback
+            // expose the previously latched byte, not arbitrary wave RAM.
+            wave_.previous_byte = wave_.current_byte;
+            wave_.has_previous_byte = wave_.last_access_cycle >= 0;
+            wave_.current_byte = CurrentWaveRamByte();
+            wave_.last_access_cycle = access_cycle;
+            if (wave_.frequency_period_pending)
+            {
+                wave_.frequency_period = wave_.pending_frequency_period;
+                wave_.frequency_period_pending = false;
+            }
+            wave_.frequency_timer += wave_.frequency_period;
+        }
     }
 
     void Apu::TickFrameSequencer(int cycles)

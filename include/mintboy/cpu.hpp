@@ -56,6 +56,7 @@ namespace mintboy
         Byte ReadByte(Word address);
         void WriteByte(Word address, Byte value);
         void IdleCycle();
+        void IdleHalfCycle();
         Byte FetchByte();
         Word FetchWord();
         std::int8_t FetchSignedByte();

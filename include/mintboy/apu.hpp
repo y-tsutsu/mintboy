@@ -48,12 +48,21 @@ namespace mintboy
         struct WaveChannel
         {
             bool enabled = false;
-            double position = 0.0;
+            int sample_index = 0;
+            int frequency_timer = 0;
+            int frequency_period = 0;
+            int pending_frequency_period = 0;
+            bool frequency_period_pending = false;
+            int last_access_cycle = -1;
+            Byte current_byte = 0;
+            Byte previous_byte = 0;
+            bool has_previous_byte = false;
             int length_counter = 0;
         };
 
         [[nodiscard]] static bool IsRegisterAddress(Word address);
         [[nodiscard]] static std::size_t RegisterIndex(Word address);
+        [[nodiscard]] int WaveFrequencyPeriod() const;
         [[nodiscard]] Byte ReadControl() const;
         [[nodiscard]] Byte ReadRegister(Word address) const;
         [[nodiscard]] bool IsEnabled() const;
@@ -61,6 +70,7 @@ namespace mintboy
         [[nodiscard]] float RenderSquareSample(SquareChannel &channel, Word duty_address, Word frequency_low_address, Word frequency_high_address);
         [[nodiscard]] float RenderWaveSample();
         [[nodiscard]] float RenderNoiseSample();
+        [[nodiscard]] Byte CurrentWaveRamByte() const;
         [[nodiscard]] bool IsSquareDacEnabled(Word volume_address) const;
         [[nodiscard]] bool IsWaveDacEnabled() const;
         [[nodiscard]] bool IsNoiseDacEnabled() const;
@@ -74,6 +84,7 @@ namespace mintboy
         void TickSweep();
         void TriggerWave();
         void TriggerNoise();
+        void TickWaveTimer(int cycles);
         void TickFrameSequencer(int cycles);
         void TickLength(SquareChannel &channel, Word frequency_high_address);
         void TickWaveLength();
@@ -88,6 +99,7 @@ namespace mintboy
         NoiseChannel noise_{};
         int frame_sequencer_cycles_ = 0;
         int frame_sequencer_step_ = 0;
+        int apu_cycles_ = 0;
         double sample_cycles_ = 0.0;
         std::vector<float> pending_samples_;
     };
