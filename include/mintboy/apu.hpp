@@ -54,9 +54,8 @@ namespace mintboy
             int pending_frequency_period = 0;
             bool frequency_period_pending = false;
             int last_access_cycle = -1;
+            int last_access_byte_index = 0;
             Byte current_byte = 0;
-            Byte previous_byte = 0;
-            bool has_previous_byte = false;
             int length_counter = 0;
         };
 

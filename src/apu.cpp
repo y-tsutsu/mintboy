@@ -76,6 +76,15 @@ namespace mintboy
             return;
         }
 
+        if (address >= 0xFF30 && address <= 0xFF3F && wave_.enabled)
+        {
+            if (wave_.last_access_cycle == apu_cycles_)
+            {
+                registers_[RegisterIndex(static_cast<Word>(0xFF30 + wave_.last_access_byte_index))] = value;
+            }
+            return;
+        }
+
         const Byte old_value = registers_[RegisterIndex(address)];
         registers_[RegisterIndex(address)] = value;
         if (address == 0xFF11)
@@ -265,9 +274,9 @@ namespace mintboy
         {
             // On DMG, CPU wave RAM reads only see CH3's bus value at the
             // narrow timing point where the channel is fetching wave RAM.
-            if (wave_.last_access_cycle == apu_cycles_ - 2 && wave_.has_previous_byte)
+            if (wave_.last_access_cycle == apu_cycles_)
             {
-                return wave_.previous_byte;
+                return registers_[RegisterIndex(static_cast<Word>(0xFF30 + wave_.last_access_byte_index))];
             }
             return 0xFF;
         }
@@ -582,7 +591,7 @@ namespace mintboy
 
     void Apu::TriggerWave()
     {
-        if (wave_.enabled && wave_.last_access_cycle == apu_cycles_)
+        if (wave_.enabled && wave_.frequency_timer == 2)
         {
             CorruptWaveRamOnRetrigger();
         }
@@ -590,11 +599,11 @@ namespace mintboy
         wave_.enabled = IsWaveDacEnabled();
         wave_.sample_index = 0;
         wave_.last_access_cycle = -1;
-        wave_.has_previous_byte = false;
+        wave_.last_access_byte_index = 0;
         wave_.frequency_period = WaveFrequencyPeriod();
         wave_.pending_frequency_period = wave_.frequency_period;
         wave_.frequency_period_pending = false;
-        wave_.frequency_timer = wave_.frequency_period;
+        wave_.frequency_timer = wave_.frequency_period + 6;
         if (wave_.length_counter == 0)
         {
             wave_.length_counter = 256;
@@ -603,14 +612,15 @@ namespace mintboy
 
     void Apu::CorruptWaveRamOnRetrigger()
     {
-        const int byte_index = ((wave_.sample_index + 31) & 0x1F) / 2;
-        if (byte_index < 4)
+        const int sample_index = (wave_.sample_index + 1) & 0x1F;
+        const int byte_index = sample_index / 2;
+        if ((sample_index >> 3) == 0)
         {
-            registers_[RegisterIndex(0xFF30)] = wave_.previous_byte;
+            registers_[RegisterIndex(0xFF30)] = registers_[RegisterIndex(static_cast<Word>(0xFF30 + byte_index))];
             return;
         }
 
-        const int aligned_byte_index = byte_index & ~0x03;
+        const int aligned_byte_index = byte_index & 0x0C;
         for (int offset = 0; offset < 4; ++offset)
         {
             registers_[RegisterIndex(static_cast<Word>(0xFF30 + offset))] =
@@ -649,12 +659,9 @@ namespace mintboy
         {
             const int access_cycle = apu_cycles_ + cycles + wave_.frequency_timer;
             wave_.sample_index = (wave_.sample_index + 1) & 0x1F;
-            // CH3 output is fed by a byte latch; CPU reads during playback
-            // expose the previously latched byte, not arbitrary wave RAM.
-            wave_.previous_byte = wave_.current_byte;
-            wave_.has_previous_byte = wave_.last_access_cycle >= 0;
             wave_.current_byte = CurrentWaveRamByte();
             wave_.last_access_cycle = access_cycle;
+            wave_.last_access_byte_index = wave_.sample_index / 2;
             if (wave_.frequency_period_pending)
             {
                 wave_.frequency_period = wave_.pending_frequency_period;
