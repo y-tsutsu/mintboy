@@ -36,6 +36,8 @@ namespace mintboy
         [[nodiscard]] const Framebuffer &GetFramebuffer() const;
         void SetJoypadButton(JoypadButton button, bool pressed);
         void WriteByte(Word address, Byte value);
+        void CorruptOamForRead(Word address);
+        void CorruptOamForWrite(Word address);
         void Tick(int cycles);
         [[nodiscard]] std::vector<float> DrainAudioSamples();
         [[nodiscard]] std::string DrainSerialOutput();
@@ -50,6 +52,12 @@ namespace mintboy
         void RenderSprites(Byte y, std::array<Byte, ScreenWidth> &background_color_indices);
         [[nodiscard]] std::uint32_t MapPaletteColor(Byte palette_value, Byte color_index) const;
         void StartDmaTransfer(Byte source_high);
+        [[nodiscard]] bool IsOamBugAddress(Word address) const;
+        [[nodiscard]] bool IsOamBugActive() const;
+        [[nodiscard]] std::uint16_t ReadOamWord(std::size_t row, std::size_t word) const;
+        void WriteOamWord(std::size_t row, std::size_t word, std::uint16_t value);
+        void ApplyOamReadCorruption();
+        void ApplyOamWriteCorruption();
         void SetPpuMode(Byte mode);
         void RequestStatInterrupt(Byte source_bit);
         void RequestInterrupt(Byte bit);

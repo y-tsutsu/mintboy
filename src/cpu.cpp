@@ -186,6 +186,7 @@ namespace mintboy
             WriteByte(registers_.BC(), registers_.a);
             return 8;
         case 0x03: // INC BC
+            memory_.CorruptOamForWrite(registers_.BC());
             registers_.SetBC(static_cast<Word>(registers_.BC() + 1));
             return 8;
         case 0x04: // INC B
@@ -235,6 +236,7 @@ namespace mintboy
             registers_.a = ReadByte(registers_.BC());
             return 8;
         case 0x0B: // DEC BC
+            memory_.CorruptOamForWrite(registers_.BC());
             registers_.SetBC(static_cast<Word>(registers_.BC() - 1));
             return 8;
         case 0x0C: // INC C
@@ -269,6 +271,7 @@ namespace mintboy
             WriteByte(registers_.DE(), registers_.a);
             return 8;
         case 0x13: // INC DE
+            memory_.CorruptOamForWrite(registers_.DE());
             registers_.SetDE(static_cast<Word>(registers_.DE() + 1));
             return 8;
         case 0x14: // INC D
@@ -312,6 +315,7 @@ namespace mintboy
             registers_.a = ReadByte(registers_.DE());
             return 8;
         case 0x1B: // DEC DE
+            memory_.CorruptOamForWrite(registers_.DE());
             registers_.SetDE(static_cast<Word>(registers_.DE() - 1));
             return 8;
         case 0x1C: // INC E
@@ -349,9 +353,11 @@ namespace mintboy
             return 12;
         case 0x22: // LD (HL+),A
             WriteByte(registers_.HL(), registers_.a);
+            memory_.CorruptOamForWrite(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() + 1));
             return 8;
         case 0x23: // INC HL
+            memory_.CorruptOamForWrite(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() + 1));
             return 8;
         case 0x24: // INC H
@@ -385,9 +391,11 @@ namespace mintboy
         }
         case 0x2A: // LD A,(HL+)
             registers_.a = ReadByte(registers_.HL());
+            memory_.CorruptOamForRead(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() + 1));
             return 8;
         case 0x2B: // DEC HL
+            memory_.CorruptOamForWrite(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
             return 8;
         case 0x2C: // INC L
@@ -445,9 +453,11 @@ namespace mintboy
             return 12;
         case 0x32: // LD (HL-),A
             WriteByte(registers_.HL(), registers_.a);
+            memory_.CorruptOamForWrite(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
             return 8;
         case 0x33: // INC SP
+            memory_.CorruptOamForWrite(registers_.sp);
             ++registers_.sp;
             return 8;
         case 0x36: // LD (HL),d8
@@ -487,9 +497,11 @@ namespace mintboy
         }
         case 0x3A: // LD A,(HL-)
             registers_.a = ReadByte(registers_.HL());
+            memory_.CorruptOamForRead(registers_.HL());
             registers_.SetHL(static_cast<Word>(registers_.HL() - 1));
             return 8;
         case 0x3B: // DEC SP
+            memory_.CorruptOamForWrite(registers_.sp);
             --registers_.sp;
             return 8;
         case 0x38: // JR C,r8
@@ -888,8 +900,10 @@ namespace mintboy
 
     void Cpu::PushWord(Word value)
     {
+        memory_.CorruptOamForWrite(registers_.sp);
         --registers_.sp;
         WriteByte(registers_.sp, static_cast<Byte>(value >> 8));
+        memory_.CorruptOamForWrite(registers_.sp);
         --registers_.sp;
         WriteByte(registers_.sp, static_cast<Byte>(value));
     }
@@ -897,8 +911,10 @@ namespace mintboy
     Word Cpu::PopWord()
     {
         const Byte low = ReadByte(registers_.sp);
+        memory_.CorruptOamForRead(registers_.sp);
         ++registers_.sp;
         const Byte high = ReadByte(registers_.sp);
+        memory_.CorruptOamForRead(registers_.sp);
         ++registers_.sp;
         return static_cast<Word>(low | (high << 8));
     }

@@ -225,7 +225,7 @@ namespace mintboy
                 }
                 else if (!was_enabled)
                 {
-                    ppu_cycles_ = 0;
+                    ppu_cycles_ = 4;
                     io_registers_[LyAddress - 0xFF00] = 0;
                     SetPpuMode(2);
                 }
@@ -635,6 +635,87 @@ namespace mintboy
         for (Word offset = 0; offset < 0x00A0; ++offset)
         {
             oam_[offset] = ReadByte(static_cast<Word>(source + offset));
+        }
+    }
+
+    void Memory::CorruptOamForRead(Word address)
+    {
+        if (!IsOamBugAddress(address) || !IsOamBugActive())
+        {
+            return;
+        }
+
+        ApplyOamReadCorruption();
+    }
+
+    void Memory::CorruptOamForWrite(Word address)
+    {
+        if (!IsOamBugAddress(address) || !IsOamBugActive())
+        {
+            return;
+        }
+
+        ApplyOamWriteCorruption();
+    }
+
+    bool Memory::IsOamBugAddress(Word address) const
+    {
+        return address >= 0xFE00 && address <= 0xFEFF;
+    }
+
+    bool Memory::IsOamBugActive() const
+    {
+        const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
+        const Byte ly = io_registers_[LyAddress - 0xFF00];
+        return (lcd_control & LcdEnabledBit) != 0 && ly < 144 && ppu_cycles_ < 80;
+    }
+
+    std::uint16_t Memory::ReadOamWord(std::size_t row, std::size_t word) const
+    {
+        const std::size_t offset = row * 8 + word * 2;
+        return static_cast<std::uint16_t>(oam_[offset] | (oam_[offset + 1] << 8));
+    }
+
+    void Memory::WriteOamWord(std::size_t row, std::size_t word, std::uint16_t value)
+    {
+        const std::size_t offset = row * 8 + word * 2;
+        oam_[offset] = static_cast<Byte>(value);
+        oam_[offset + 1] = static_cast<Byte>(value >> 8);
+    }
+
+    void Memory::ApplyOamReadCorruption()
+    {
+        const auto row = static_cast<std::size_t>((ppu_cycles_ / 4) + 1);
+        if (row == 0 || row >= 20)
+        {
+            return;
+        }
+
+        const std::uint16_t a = ReadOamWord(row, 0);
+        const std::uint16_t b = ReadOamWord(row - 1, 0);
+        const std::uint16_t c = ReadOamWord(row - 1, 2);
+        WriteOamWord(row, 0, static_cast<std::uint16_t>(b | (a & c)));
+        for (std::size_t word = 1; word < 4; ++word)
+        {
+            WriteOamWord(row, word, ReadOamWord(row - 1, word));
+        }
+    }
+
+    void Memory::ApplyOamWriteCorruption()
+    {
+        const auto row = static_cast<std::size_t>((ppu_cycles_ / 4) + 1);
+        if (row == 0 || row >= 20)
+        {
+            return;
+        }
+
+        const std::uint16_t a = ReadOamWord(row, 0);
+        const std::uint16_t b = ReadOamWord(row - 1, 0);
+        const std::uint16_t c = ReadOamWord(row - 1, 2);
+        WriteOamWord(row, 0, static_cast<std::uint16_t>(((a ^ c) & (b ^ c)) ^ c));
+        for (std::size_t word = 1; word < 4; ++word)
+        {
+            WriteOamWord(row, word, ReadOamWord(row - 1, word));
         }
     }
 
