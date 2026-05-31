@@ -52,6 +52,7 @@ if(MINTBOY_BUILD_SDL)
         add_executable(mintboy src/app_sdl.cpp)
         target_link_libraries(mintboy PRIVATE mintboy_core tomlplusplus::tomlplusplus)
         target_compile_definitions(mintboy PRIVATE SDL_MAIN_HANDLED)
+        set_target_properties(mintboy PROPERTIES WIN32_EXECUTABLE TRUE)
 
         if(MINTBOY_SDL2_TARGET)
             target_link_libraries(mintboy PRIVATE ${MINTBOY_SDL2_TARGET})
