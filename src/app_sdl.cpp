@@ -3,6 +3,7 @@
 #include "mintboy/memory.hpp"
 
 #include <SDL.h>
+#include <toml++/toml.hpp>
 
 #include <array>
 #include <chrono>
@@ -11,6 +12,7 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -18,9 +20,21 @@
 
 namespace
 {
-    constexpr int WindowScale = 4;
+    constexpr int DefaultWindowScale = 4;
     constexpr int CyclesPerFrame = 70224;
     constexpr int AudioSampleRate = 48000;
+    constexpr const char *ConfigFileName = "mintboy.toml";
+
+    bool g_trace_input_enabled = false;
+
+    struct AppSettings
+    {
+        std::optional<std::filesystem::path> rom_path;
+        bool swap_controller_ab = false;
+        bool trace_input = false;
+        int window_scale = DefaultWindowScale;
+        bool audio_enabled = true;
+    };
 
     struct DebugControls
     {
@@ -31,13 +45,80 @@ namespace
 
     bool TraceInputEnabled()
     {
-        return std::getenv("MINTBOY_TRACE_INPUT") != nullptr;
+        return g_trace_input_enabled;
     }
 
-    bool SwapControllerAb()
+    bool EnvironmentFlag(const char *name, bool fallback)
     {
-        const char *value = std::getenv("MINTBOY_SWAP_CONTROLLER_AB");
-        return value != nullptr && std::string(value) != "0";
+        const char *value = std::getenv(name);
+        if (value == nullptr)
+        {
+            return fallback;
+        }
+
+        const std::string text(value);
+        return text != "0" && text != "false" && text != "False" && text != "FALSE";
+    }
+
+    void ApplyTomlConfig(AppSettings &settings, const std::filesystem::path &path)
+    {
+        const toml::table config = toml::parse_file(path.string());
+
+        if (const auto value = config["rom"]["path"].value<std::string>())
+        {
+            std::filesystem::path rom_path = *value;
+            if (rom_path.is_relative())
+            {
+                rom_path = path.parent_path() / rom_path;
+            }
+            settings.rom_path = rom_path;
+        }
+        if (const auto value = config["input"]["swap_controller_ab"].value<bool>())
+        {
+            settings.swap_controller_ab = *value;
+        }
+        if (const auto value = config["input"]["trace_input"].value<bool>())
+        {
+            settings.trace_input = *value;
+        }
+        if (const auto value = config["video"]["window_scale"].value<int64_t>())
+        {
+            if (*value <= 0 || *value > 16)
+            {
+                throw std::runtime_error("video.window_scale must be between 1 and 16");
+            }
+            settings.window_scale = static_cast<int>(*value);
+        }
+        if (const auto value = config["audio"]["enabled"].value<bool>())
+        {
+            settings.audio_enabled = *value;
+        }
+    }
+
+    AppSettings LoadSettings(const char *executable_path)
+    {
+        AppSettings settings;
+
+        const std::array<std::filesystem::path, 2> config_paths = {
+            std::filesystem::path(ConfigFileName),
+            std::filesystem::path(executable_path).parent_path() / ConfigFileName,
+        };
+
+        std::optional<std::filesystem::path> loaded_path;
+        for (const auto &path : config_paths)
+        {
+            if (path.empty() || loaded_path == path || !std::filesystem::exists(path))
+            {
+                continue;
+            }
+            ApplyTomlConfig(settings, path);
+            loaded_path = path;
+            break;
+        }
+
+        settings.swap_controller_ab = EnvironmentFlag("MINTBOY_SWAP_CONTROLLER_AB", settings.swap_controller_ab);
+        settings.trace_input = EnvironmentFlag("MINTBOY_TRACE_INPUT", settings.trace_input);
+        return settings;
     }
 
     double SpeedMultiplier(int speed_index)
@@ -90,14 +171,14 @@ namespace
     class Window
     {
     public:
-        explicit Window(const std::string &title)
+        Window(const std::string &title, int scale)
         {
             window_ = SDL_CreateWindow(
                 title.c_str(),
                 SDL_WINDOWPOS_CENTERED,
                 SDL_WINDOWPOS_CENTERED,
-                mintboy::Memory::ScreenWidth * WindowScale,
-                mintboy::Memory::ScreenHeight * WindowScale,
+                mintboy::Memory::ScreenWidth * scale,
+                mintboy::Memory::ScreenHeight * scale,
                 SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
             if (window_ == nullptr)
             {
@@ -498,25 +579,40 @@ int main(int argc, char **argv)
 {
     SDL_SetMainReady();
 
-    if (argc != 2)
+    if (argc > 2)
     {
-        std::cerr << "usage: mintboy <rom.gb>\n";
+        std::cerr << "usage: mintboy [rom.gb]\n";
         return 2;
     }
 
     try
     {
-        mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(argv[1]);
+        AppSettings settings = LoadSettings(argv[0]);
+        if (argc == 2)
+        {
+            settings.rom_path = argv[1];
+        }
+        if (!settings.rom_path.has_value())
+        {
+            throw std::runtime_error("no ROM path specified; pass a ROM path or set rom.path in mintboy.toml");
+        }
+        g_trace_input_enabled = settings.trace_input;
+
+        mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(settings.rom_path->string());
         mintboy::Memory memory(cartridge);
         mintboy::Cpu cpu(memory);
 
         const Sdl sdl;
         const std::string rom_title = cartridge.Title().empty()
-                                          ? std::filesystem::path(argv[1]).filename().string()
+                                          ? settings.rom_path->filename().string()
                                           : cartridge.Title();
-        Window window(WindowTitle(rom_title, DebugControls{}));
-        Audio audio;
-        Controller controller(SwapControllerAb());
+        Window window(WindowTitle(rom_title, DebugControls{}), settings.window_scale);
+        std::optional<Audio> audio;
+        if (settings.audio_enabled)
+        {
+            audio.emplace();
+        }
+        Controller controller(settings.swap_controller_ab);
         DebugControls debug_controls;
         std::string current_window_title;
 
@@ -548,7 +644,11 @@ int main(int argc, char **argv)
             debug_controls.step_frame = false;
 
             window.Present(memory.GetFramebuffer());
-            audio.QueueSamples(memory.DrainAudioSamples());
+            const auto audio_samples = memory.DrainAudioSamples();
+            if (audio.has_value())
+            {
+                audio->QueueSamples(audio_samples);
+            }
             const std::string next_window_title = WindowTitle(rom_title, debug_controls);
             if (next_window_title != current_window_title)
             {

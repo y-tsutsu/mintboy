@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+find_package(tomlplusplus CONFIG REQUIRED)
+
 add_library(mintboy_core
     src/apu.cpp
     src/cartridge.cpp
@@ -48,7 +50,7 @@ if(MINTBOY_BUILD_SDL)
 
     if(MINTBOY_SDL2_TARGET OR SDL2_FOUND)
         add_executable(mintboy src/app_sdl.cpp)
-        target_link_libraries(mintboy PRIVATE mintboy_core)
+        target_link_libraries(mintboy PRIVATE mintboy_core tomlplusplus::tomlplusplus)
         target_compile_definitions(mintboy PRIVATE SDL_MAIN_HANDLED)
 
         if(MINTBOY_SDL2_TARGET)

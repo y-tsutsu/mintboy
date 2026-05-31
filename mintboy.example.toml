@@ -1,0 +1,13 @@
+[rom]
+# Used when mintboy is launched without a ROM path argument.
+path = "rom/tetris.gb"
+
+[input]
+swap_controller_ab = false
+trace_input = false
+
+[video]
+window_scale = 4
+
+[audio]
+enabled = true

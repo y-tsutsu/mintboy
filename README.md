@@ -12,11 +12,11 @@ The current codebase has the first core pieces in place:
 
 ## Build on Debian/WSL
 
-Install the SDL2 development package:
+Install the SDL2 and toml++ development packages:
 
 ```console
 $ sudo apt update
-$ sudo apt install -y libsdl2-dev
+$ sudo apt install -y libsdl2-dev libtomlplusplus-dev
 ```
 
 Then build and run tests:
@@ -27,7 +27,7 @@ $ cmake --build build
 $ ctest --test-dir build --output-on-failure
 ```
 
-The Debian 13 package is available as `libsdl2-dev`. If SDL2 is not installed, CMake still builds the CLI fallback and tests. The `mintboy_info` executable prints ROM header information.
+The Debian 13 packages are available as `libsdl2-dev` and `libtomlplusplus-dev`. If SDL2 is not installed, CMake still builds the CLI fallback and tests. The `mintboy_info` executable prints ROM header information.
 
 ## Headless smoke test
 
@@ -79,9 +79,28 @@ When SDL2 is available, the `mintboy` executable opens an SDL2 window:
 $ ./build/mintboy path/to/game.gb
 ```
 
+You can also create a local `mintboy.toml` next to the executable or in the current working directory and launch `mintboy` without a ROM argument. Relative ROM paths are resolved from the config file location. Command-line arguments override the config file:
+
+```toml
+[rom]
+path = "rom/tetris.gb"
+
+[input]
+swap_controller_ab = false
+trace_input = false
+
+[video]
+window_scale = 4
+
+[audio]
+enabled = true
+```
+
+`mintboy.toml` is ignored by git. Copy `mintboy.example.toml` as a starting point if needed.
+
 On WSL, an SDL2 window requires WSLg or another X/Wayland server.
 
-Audio output is experimental. The current APU implementation only generates minimal square wave channels.
+Audio output is experimental but supports the DMG square, wave, and noise channels.
 
 Keyboard controls:
 
@@ -108,7 +127,7 @@ SDL2 game controllers are also supported when the controller is visible to the O
 - Back: Select
 - Start: Start
 
-Set `MINTBOY_SWAP_CONTROLLER_AB=1` to swap the controller A/B mapping for SNES-style layouts.
+Set `MINTBOY_SWAP_CONTROLLER_AB=1` to swap the controller A/B mapping for SNES-style layouts. Environment variables override `mintboy.toml`.
 
 On WSLg, if Z/X/A/S do not work, switch the IME/input mode with the Hankaku/Zenkaku key.
 WSL may not expose USB controllers to Linux by default. If the controller is not listed under `/dev/input`, use the keyboard controls or run the emulator on Windows once the Windows build is revisited.
@@ -123,7 +142,7 @@ Install vcpkg under the ignored `build/` directory:
 ```console
 $ git clone https://github.com/microsoft/vcpkg.git build\vcpkg
 $ .\build\vcpkg\bootstrap-vcpkg.bat
-$ .\build\vcpkg\vcpkg.exe install sdl2:x64-mingw-dynamic
+$ .\build\vcpkg\vcpkg.exe install sdl2:x64-mingw-dynamic tomlplusplus:x64-mingw-dynamic
 ```
 
 Then configure, build, and run tests:
