@@ -685,17 +685,82 @@ namespace mintboy
 
     void Memory::ApplyOamReadCorruption()
     {
-        const auto row = static_cast<std::size_t>((ppu_cycles_ / 4) + 1);
+        const auto row = static_cast<std::size_t>((ppu_cycles_ / 8) + 1);
         if (row == 0 || row >= 20)
         {
             return;
         }
 
-        const std::uint16_t a = ReadOamWord(row, 0);
-        const std::uint16_t b = ReadOamWord(row - 1, 0);
-        const std::uint16_t c = ReadOamWord(row - 1, 2);
-        WriteOamWord(row, 0, static_cast<std::uint16_t>(b | (a & c)));
-        for (std::size_t word = 1; word < 4; ++word)
+        const auto row_offset = static_cast<std::size_t>(row * 8);
+        if ((row_offset & 0x18) == 0x10)
+        {
+            if (row < 19)
+            {
+                const std::uint16_t a = ReadOamWord(row - 2, 0);
+                const std::uint16_t b = ReadOamWord(row - 1, 0);
+                const std::uint16_t c = ReadOamWord(row, 0);
+                const std::uint16_t d = ReadOamWord(row - 1, 2);
+                WriteOamWord(row - 1, 0, static_cast<std::uint16_t>((b & (a | c | d)) | (a & c & d)));
+                for (std::size_t word = 0; word < 4; ++word)
+                {
+                    WriteOamWord(row - 2, word, ReadOamWord(row - 1, word));
+                }
+            }
+        }
+        else if ((row_offset & 0x18) == 0x00)
+        {
+            if (row < 19)
+            {
+                const std::uint16_t current_first = ReadOamWord(row, 0);
+                const std::uint16_t previous_third = ReadOamWord(row - 1, 2);
+                const std::uint16_t previous_first = ReadOamWord(row - 1, 0);
+                const std::uint16_t two_rows_first = ReadOamWord(row - 2, 0);
+                const std::uint16_t four_rows_first = ReadOamWord(row - 4, 0);
+                std::uint16_t first_word = 0;
+
+                if (row_offset == 0x20)
+                {
+                    first_word = static_cast<std::uint16_t>((previous_first & (current_first | previous_third | two_rows_first | four_rows_first)) |
+                                                            (current_first & previous_third & two_rows_first & four_rows_first));
+                }
+                else if (row_offset == 0x40)
+                {
+                    const std::uint16_t first_oam_word = ReadOamWord(0, 0);
+                    const std::uint16_t previous_second = ReadOamWord(row - 1, 1);
+                    const std::uint16_t two_rows_second = ReadOamWord(row - 2, 1);
+                    first_word = static_cast<std::uint16_t>((previous_first & (four_rows_first | two_rows_first | (~previous_second & two_rows_second) | previous_third | current_first)) |
+                                                            (previous_third & two_rows_first & four_rows_first));
+                    (void)first_oam_word;
+                }
+                else if (row_offset == 0x60)
+                {
+                    first_word = static_cast<std::uint16_t>((previous_first & (current_first | previous_third | two_rows_first | four_rows_first)) |
+                                                            (previous_third & two_rows_first & four_rows_first));
+                }
+                else
+                {
+                    first_word = static_cast<std::uint16_t>(previous_first | (current_first & previous_third & two_rows_first & four_rows_first));
+                }
+
+                WriteOamWord(row - 1, 0, first_word);
+                for (std::size_t word = 0; word < 4; ++word)
+                {
+                    const std::uint16_t value = ReadOamWord(row - 1, word);
+                    WriteOamWord(row - 2, word, value);
+                    WriteOamWord(row - 4, word, value);
+                }
+            }
+        }
+        else
+        {
+            const std::uint16_t a = ReadOamWord(row, 0);
+            const std::uint16_t b = ReadOamWord(row - 1, 0);
+            const std::uint16_t c = ReadOamWord(row - 1, 2);
+            WriteOamWord(row - 1, 0, static_cast<std::uint16_t>(b | (a & c)));
+            WriteOamWord(row, 0, ReadOamWord(row - 1, 0));
+        }
+
+        for (std::size_t word = 0; word < 4; ++word)
         {
             WriteOamWord(row, word, ReadOamWord(row - 1, word));
         }

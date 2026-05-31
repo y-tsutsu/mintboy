@@ -806,6 +806,7 @@ namespace mintboy
     Byte Cpu::ReadByte(Word address)
     {
         IdleHalfCycle();
+        memory_.CorruptOamForRead(address);
         const Byte value = memory_.ReadByte(address);
         IdleHalfCycle();
         return value;
@@ -814,6 +815,7 @@ namespace mintboy
     void Cpu::WriteByte(Word address, Byte value)
     {
         IdleHalfCycle();
+        memory_.CorruptOamForWrite(address);
         memory_.WriteByte(address, value);
         IdleHalfCycle();
     }
@@ -911,10 +913,8 @@ namespace mintboy
     Word Cpu::PopWord()
     {
         const Byte low = ReadByte(registers_.sp);
-        memory_.CorruptOamForRead(registers_.sp);
         ++registers_.sp;
         const Byte high = ReadByte(registers_.sp);
-        memory_.CorruptOamForRead(registers_.sp);
         ++registers_.sp;
         return static_cast<Word>(low | (high << 8));
     }
