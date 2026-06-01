@@ -12,22 +12,24 @@ The current codebase has the first core pieces in place:
 
 ## Build on Debian/WSL
 
-Install the SDL2 and toml++ development packages:
+Install Ninja, SDL2, and toml++:
 
 ```console
 $ sudo apt update
-$ sudo apt install -y libsdl2-dev libtomlplusplus-dev
+$ sudo apt install -y ninja-build libsdl2-dev libtomlplusplus-dev
 ```
 
 Then build and run tests:
 
 ```console
-$ cmake -S . -B build
-$ cmake --build build --parallel
-$ ctest --test-dir build --output-on-failure
+$ cmake --preset debug
+$ cmake --build --preset debug --parallel
+$ ctest --preset debug
 ```
 
-The Debian 13 packages are available as `libsdl2-dev` and `libtomlplusplus-dev`. If SDL2 is not installed, CMake still builds the CLI fallback and tests. The `mintboy_info` executable prints ROM header information.
+The build output is written to the ignored `build/` directory. The Debian 13 packages are available as `ninja-build`, `libsdl2-dev`, and `libtomlplusplus-dev`. If SDL2 is not installed, CMake still builds the CLI fallback and tests. The `mintboy_info` executable prints ROM header information.
+
+If `build/` already exists from an older Makefiles-based configuration, delete and recreate it before switching to the Ninja presets.
 
 ## Headless smoke test
 
@@ -57,8 +59,8 @@ The test ROM collection is intentionally not vendored or added as a git submodul
 When the ROMs are present at `rom/tests/gb-test-roms`, CMake also registers selected Blargg CPU, timing, HALT bug, and DMG sound ROMs as optional CTest cases. Re-run CMake after cloning the ROMs so the tests are discovered:
 
 ```console
-$ cmake -S . -B build
-$ ctest --test-dir build --output-on-failure
+$ cmake --preset debug
+$ ctest --preset debug
 ```
 
 ## References
@@ -134,10 +136,9 @@ WSL may not expose USB controllers to Linux by default. If the controller is not
 
 ## Build on Windows with MSYS2 and vcpkg
 
-These steps assume MSYS2, Git, and CMake are already installed, and that the
-MSYS2 MinGW compiler tools are available on `PATH`.
+These steps assume MSYS2, Git, CMake, and Ninja are already installed, and that the MSYS2 MinGW compiler tools are available on `PATH`.
 
-Install vcpkg under the ignored `build/` directory:
+Install vcpkg under the ignored `build/` directory, then install the runtime dependencies:
 
 ```console
 $ git clone https://github.com/microsoft/vcpkg.git build\vcpkg
@@ -145,32 +146,31 @@ $ .\build\vcpkg\bootstrap-vcpkg.bat
 $ .\build\vcpkg\vcpkg.exe install sdl2:x64-mingw-dynamic tomlplusplus:x64-mingw-dynamic
 ```
 
+The `windows-mingw` preset expects vcpkg at `build\vcpkg`. If you delete `build\`, reinstall vcpkg before configuring again.
+
 Then configure, build, and run tests:
 
 ```console
-$ cmake -S . -B build\windows-mingw -G "MinGW Makefiles" ^
-  -DCMAKE_TOOLCHAIN_FILE="%CD%\build\vcpkg\scripts\buildsystems\vcpkg.cmake" ^
-  -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic ^
-  -DCMAKE_BUILD_TYPE=Release
-$ cmake --build build\windows-mingw --parallel
-$ ctest --test-dir build\windows-mingw --output-on-failure
+$ cmake --preset windows-mingw
+$ cmake --build --preset windows-mingw --parallel
+$ ctest --preset windows-mingw
 ```
 
 Run the SDL2 frontend from the build directory so `SDL2.dll` can be found:
 
 ```console
-$ .\build\windows-mingw\mintboy.exe path\to\game.gb
+$ .\build\mintboy.exe path\to\game.gb
 ```
 
 To trace keyboard and controller input while testing:
 
 ```console
 $ set MINTBOY_TRACE_INPUT=1
-$ .\build\windows-mingw\mintboy.exe path\to\game.gb
+$ .\build\mintboy.exe path\to\game.gb
 ```
 
 To disable the SDL2 frontend explicitly:
 
 ```console
-$ cmake -S . -B build -DMINTBOY_BUILD_SDL=OFF
+$ cmake --preset windows-mingw -DMINTBOY_BUILD_SDL=OFF
 ```
