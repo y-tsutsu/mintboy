@@ -72,6 +72,14 @@ namespace
         }
     }
 
+    bool IsBlarggTestDone(mintboy::Memory &memory)
+    {
+        return memory.ReadByte(0xA001) == 0xDE &&
+               memory.ReadByte(0xA002) == 0xB0 &&
+               memory.ReadByte(0xA003) == 0x61 &&
+               memory.ReadByte(0xA000) != 0x80;
+    }
+
     std::string BlarggMemoryOutput(mintboy::Memory &memory)
     {
         if (memory.ReadByte(0xA001) != 0xDE || memory.ReadByte(0xA002) != 0xB0 || memory.ReadByte(0xA003) != 0x61)
@@ -116,7 +124,8 @@ int main(int argc, char **argv)
         mintboy::Cpu cpu(memory);
         std::string serial_output;
 
-        for (int frame = 0; frame < frames; ++frame)
+        int executed_frames = 0;
+        for (; executed_frames < frames; ++executed_frames)
         {
             int cycles = 0;
             while (cycles < CyclesPerFrame)
@@ -125,10 +134,15 @@ int main(int argc, char **argv)
             }
             [[maybe_unused]] const auto audio_samples = memory.DrainAudioSamples();
             serial_output += memory.DrainSerialOutput();
+            if (IsBlarggTestDone(memory))
+            {
+                ++executed_frames;
+                break;
+            }
         }
 
         std::cout << "Title: " << cartridge.Title() << '\n';
-        std::cout << "Frames: " << frames << '\n';
+        std::cout << "Frames: " << executed_frames << '\n';
         std::cout << std::format("Framebuffer hash: 0x{:016X}\n", FramebufferHash(memory.GetFramebuffer()));
         std::cout << "CPU PC: " << std::format("0x{:04X}", cpu.GetRegisters().pc) << '\n';
         if (!frame_dump_path.empty())
