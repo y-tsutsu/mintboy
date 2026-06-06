@@ -76,6 +76,10 @@ namespace mintboy
 
         if (address >= 0xFE00 && address <= 0xFE9F)
         {
+            if (IsOamBugActive())
+            {
+                return 0xFF;
+            }
             return oam_[address - 0xFE00];
         }
 
@@ -161,6 +165,10 @@ namespace mintboy
 
         if (address >= 0xFE00 && address <= 0xFE9F)
         {
+            if (IsOamBugActive())
+            {
+                return;
+            }
             oam_[address - 0xFE00] = value;
             return;
         }
@@ -685,7 +693,7 @@ namespace mintboy
 
     void Memory::ApplyOamReadCorruption()
     {
-        const auto row = static_cast<std::size_t>((ppu_cycles_ / 8) + 1);
+        const auto row = static_cast<std::size_t>(ppu_cycles_ / 4);
         if (row == 0 || row >= 20)
         {
             return;
