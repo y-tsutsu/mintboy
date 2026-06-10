@@ -13,6 +13,7 @@ namespace mintboy
         [[nodiscard]] Byte ReadByte(Word address) const;
         void WriteByte(Word address, Byte value);
         void Tick(int cycles);
+        void SetSampleGenerationEnabled(bool enabled);
         [[nodiscard]] std::vector<float> DrainSamples();
 
     private:
@@ -101,6 +102,7 @@ namespace mintboy
         int frame_sequencer_step_ = 0;
         int apu_cycles_ = 0;
         double sample_cycles_ = 0.0;
+        bool sample_generation_enabled_ = true;
         std::vector<float> pending_samples_;
     };
 }

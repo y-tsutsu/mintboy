@@ -128,6 +128,7 @@ int main(int argc, char **argv)
 
         mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(argv[1]);
         mintboy::Memory memory(cartridge);
+        memory.SetAudioSampleGenerationEnabled(false);
         mintboy::Cpu cpu(memory);
         std::string serial_output;
 

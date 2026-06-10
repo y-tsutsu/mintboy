@@ -39,6 +39,7 @@ namespace mintboy
         void CorruptOamForRead(Word address);
         void CorruptOamForWrite(Word address);
         void Tick(int cycles);
+        void SetAudioSampleGenerationEnabled(bool enabled);
         [[nodiscard]] std::vector<float> DrainAudioSamples();
         [[nodiscard]] std::string DrainSerialOutput();
 

@@ -208,6 +208,11 @@ namespace mintboy
         TickWaveTimer(cycles);
         apu_cycles_ += cycles;
 
+        if (!sample_generation_enabled_)
+        {
+            return;
+        }
+
         sample_cycles_ += cycles;
         constexpr double cycles_per_sample = static_cast<double>(CpuFrequency) / SampleRate;
         while (sample_cycles_ >= cycles_per_sample)
@@ -218,6 +223,16 @@ namespace mintboy
             const float channel3 = RenderWaveSample();
             const float channel4 = RenderNoiseSample();
             pending_samples_.push_back(std::clamp(MixChannels(channel1, channel2, channel3, channel4), -1.0F, 1.0F));
+        }
+    }
+
+    void Apu::SetSampleGenerationEnabled(bool enabled)
+    {
+        sample_generation_enabled_ = enabled;
+        if (!enabled)
+        {
+            sample_cycles_ = 0.0;
+            pending_samples_.clear();
         }
     }
 

@@ -364,6 +364,11 @@ namespace mintboy
         return apu_.DrainSamples();
     }
 
+    void Memory::SetAudioSampleGenerationEnabled(bool enabled)
+    {
+        apu_.SetSampleGenerationEnabled(enabled);
+    }
+
     std::string Memory::DrainSerialOutput()
     {
         std::string output;
