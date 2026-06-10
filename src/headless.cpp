@@ -80,6 +80,13 @@ namespace
                memory.ReadByte(0xA000) != 0x80;
     }
 
+    bool IsSerialTestDone(const std::string &serial_output)
+    {
+        return serial_output.find("Passed all tests") != std::string::npos ||
+               serial_output.find("\nPassed\n") != std::string::npos ||
+               serial_output.find("\nFailed") != std::string::npos;
+    }
+
     std::string BlarggMemoryOutput(mintboy::Memory &memory)
     {
         if (memory.ReadByte(0xA001) != 0xDE || memory.ReadByte(0xA002) != 0xB0 || memory.ReadByte(0xA003) != 0x61)
@@ -134,7 +141,7 @@ int main(int argc, char **argv)
             }
             [[maybe_unused]] const auto audio_samples = memory.DrainAudioSamples();
             serial_output += memory.DrainSerialOutput();
-            if (IsBlarggTestDone(memory))
+            if (IsBlarggTestDone(memory) || IsSerialTestDone(serial_output))
             {
                 ++executed_frames;
                 break;
