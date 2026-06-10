@@ -163,6 +163,13 @@ else()
 endif()
 
 set(MINTBOY_BLARGG_OAM_BUG_TEST_DIR "${MINTBOY_BLARGG_TEST_DIR}/oam_bug/rom_singles")
+set(MINTBOY_BLARGG_OAM_BUG_ROM "${MINTBOY_BLARGG_TEST_DIR}/oam_bug/oam_bug.gb")
+if(EXISTS "${MINTBOY_BLARGG_OAM_BUG_ROM}")
+    add_headless_rom_test("blargg_oam_bug" "${MINTBOY_BLARGG_OAM_BUG_ROM}" 1800)
+else()
+    message(STATUS "Blargg combined OAM bug test ROM was not found; skipping external combined OAM bug test")
+endif()
+
 if(EXISTS "${MINTBOY_BLARGG_OAM_BUG_TEST_DIR}")
     add_headless_rom_test("blargg_oam_bug_1-lcd_sync" "${MINTBOY_BLARGG_OAM_BUG_TEST_DIR}/1-lcd_sync.gb" 1800)
     add_headless_rom_test("blargg_oam_bug_2-causes" "${MINTBOY_BLARGG_OAM_BUG_TEST_DIR}/2-causes.gb" 1800)
