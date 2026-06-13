@@ -618,6 +618,7 @@ int main(int argc, char **argv)
 
         bool running = true;
         bool cpu_running = true;
+        int frames_since_save = 0;
         while (running)
         {
             running = !PollEvents(controller, debug_controls);
@@ -655,8 +656,15 @@ int main(int argc, char **argv)
                 current_window_title = next_window_title;
                 window.SetTitle(current_window_title);
             }
+            ++frames_since_save;
+            if (frames_since_save >= 60)
+            {
+                cartridge.SaveRam();
+                frames_since_save = 0;
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
+        cartridge.SaveRam();
     }
     catch (const std::exception &error)
     {

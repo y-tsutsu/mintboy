@@ -104,6 +104,8 @@ On WSL, an SDL2 window requires WSLg or another X/Wayland server.
 
 Audio output is experimental but supports the DMG square, wave, and noise channels.
 
+Battery-backed cartridge RAM is saved next to the ROM as `game.sav` and loaded automatically on the next run. Save files are ignored by git.
+
 Keyboard controls:
 
 - D-pad: Arrow keys
