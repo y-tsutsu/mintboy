@@ -369,6 +369,11 @@ namespace mintboy
         apu_.SetSampleGenerationEnabled(enabled);
     }
 
+    void Memory::SetVideoRenderingEnabled(bool enabled)
+    {
+        video_rendering_enabled_ = enabled;
+    }
+
     std::string Memory::DrainSerialOutput()
     {
         std::string output;
@@ -439,7 +444,7 @@ namespace mintboy
         {
             ppu_cycles_ -= 456;
             Byte &ly = io_registers_[LyAddress - 0xFF00];
-            if (ly < 144)
+            if (ly < 144 && video_rendering_enabled_)
             {
                 RenderScanline(ly);
             }

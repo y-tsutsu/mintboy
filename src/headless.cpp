@@ -15,6 +15,13 @@ namespace
     constexpr int CyclesPerFrame = 70224;
     constexpr int DefaultFrameCount = 60;
 
+    struct Options
+    {
+        int frames = DefaultFrameCount;
+        std::string frame_dump_path;
+        bool render_video = false;
+    };
+
     int ParseFrameCount(const char *text)
     {
         const int frames = std::stoi(text);
@@ -25,19 +32,37 @@ namespace
         return frames;
     }
 
-    std::string ParseFrameDumpPath(int argc, char **argv)
+    Options ParseOptions(int argc, char **argv)
     {
-        if (argc == 2 || argc == 3)
+        Options options;
+        if (argc >= 3)
         {
-            return {};
+            options.frames = ParseFrameCount(argv[2]);
         }
 
-        if (argc == 5 && std::string(argv[3]) == "--dump-frame")
+        for (int arg = 3; arg < argc; ++arg)
         {
-            return argv[4];
+            const std::string option = argv[arg];
+            if (option == "--render")
+            {
+                options.render_video = true;
+            }
+            else if (option == "--dump-frame")
+            {
+                if (arg + 1 >= argc)
+                {
+                    throw std::invalid_argument("--dump-frame requires a path");
+                }
+                options.frame_dump_path = argv[++arg];
+                options.render_video = true;
+            }
+            else
+            {
+                throw std::invalid_argument("usage: mintboy_headless <rom.gb> [frames] [--render] [--dump-frame frame.ppm]");
+            }
         }
 
-        throw std::invalid_argument("usage: mintboy_headless <rom.gb> [frames] [--dump-frame frame.ppm]");
+        return options;
     }
 
     std::uint64_t FramebufferHash(const mintboy::Memory::Framebuffer &framebuffer)
@@ -115,25 +140,25 @@ namespace
 
 int main(int argc, char **argv)
 {
-    if (argc < 2 || argc > 5)
+    if (argc < 2 || argc > 6)
     {
-        std::cerr << "usage: mintboy_headless <rom.gb> [frames] [--dump-frame frame.ppm]\n";
+        std::cerr << "usage: mintboy_headless <rom.gb> [frames] [--render] [--dump-frame frame.ppm]\n";
         return 2;
     }
 
     try
     {
-        const int frames = argc >= 3 ? ParseFrameCount(argv[2]) : DefaultFrameCount;
-        const std::string frame_dump_path = ParseFrameDumpPath(argc, argv);
+        const Options options = ParseOptions(argc, argv);
 
         mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(argv[1]);
         mintboy::Memory memory(cartridge);
         memory.SetAudioSampleGenerationEnabled(false);
+        memory.SetVideoRenderingEnabled(options.render_video);
         mintboy::Cpu cpu(memory);
         std::string serial_output;
 
         int executed_frames = 0;
-        for (; executed_frames < frames; ++executed_frames)
+        for (; executed_frames < options.frames; ++executed_frames)
         {
             int cycles = 0;
             while (cycles < CyclesPerFrame)
@@ -153,10 +178,10 @@ int main(int argc, char **argv)
         std::cout << "Frames: " << executed_frames << '\n';
         std::cout << std::format("Framebuffer hash: 0x{:016X}\n", FramebufferHash(memory.GetFramebuffer()));
         std::cout << "CPU PC: " << std::format("0x{:04X}", cpu.GetRegisters().pc) << '\n';
-        if (!frame_dump_path.empty())
+        if (!options.frame_dump_path.empty())
         {
-            DumpFramebuffer(memory.GetFramebuffer(), frame_dump_path);
-            std::cout << "Frame dump: " << frame_dump_path << '\n';
+            DumpFramebuffer(memory.GetFramebuffer(), options.frame_dump_path);
+            std::cout << "Frame dump: " << options.frame_dump_path << '\n';
         }
         if (!serial_output.empty())
         {

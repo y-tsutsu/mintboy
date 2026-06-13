@@ -14,8 +14,14 @@ if(NOT DEFINED MINTBOY_EXPECTED_OUTPUT)
     set(MINTBOY_EXPECTED_OUTPUT "Passed")
 endif()
 
+set(extra_args)
+string(FIND "${MINTBOY_EXPECTED_OUTPUT}" "Framebuffer hash:" framebuffer_expected_index)
+if(NOT framebuffer_expected_index EQUAL -1)
+    list(APPEND extra_args "--render")
+endif()
+
 execute_process(
-    COMMAND "${MINTBOY_HEADLESS}" "${MINTBOY_ROM}" "${MINTBOY_FRAMES}"
+    COMMAND "${MINTBOY_HEADLESS}" "${MINTBOY_ROM}" "${MINTBOY_FRAMES}" ${extra_args}
     RESULT_VARIABLE result
     OUTPUT_VARIABLE output
     ERROR_VARIABLE error

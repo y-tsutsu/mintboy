@@ -40,6 +40,7 @@ namespace mintboy
         void CorruptOamForWrite(Word address);
         void Tick(int cycles);
         void SetAudioSampleGenerationEnabled(bool enabled);
+        void SetVideoRenderingEnabled(bool enabled);
         [[nodiscard]] std::vector<float> DrainAudioSamples();
         [[nodiscard]] std::string DrainSerialOutput();
 
@@ -80,5 +81,6 @@ namespace mintboy
         int divider_cycles_ = 0;
         int timer_cycles_ = 0;
         int ppu_cycles_ = 0;
+        bool video_rendering_enabled_ = true;
     };
 }
