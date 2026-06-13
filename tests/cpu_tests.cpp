@@ -885,6 +885,33 @@ MINTBOY_TEST(cpu_executes_stop)
     MINTBOY_REQUIRE(cpu.GetRegisters().a != 0x42);
 }
 
+MINTBOY_TEST(cpu_consumes_key1_speed_switch_request_on_stop)
+{
+    mintboy::Cartridge cartridge = MakeRom({
+        0x3E,
+        0x01,
+        0xE0,
+        0x4D,
+        0x10,
+        0x00,
+        0x3E,
+        0x42,
+    });
+    mintboy::Memory memory(cartridge);
+    mintboy::Cpu cpu(memory);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.Step() == 12);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF4D) == 0x7F);
+
+    MINTBOY_REQUIRE(cpu.Step() == 4);
+    MINTBOY_REQUIRE(!cpu.IsStopped());
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF4D) == 0xFE);
+
+    MINTBOY_REQUIRE(cpu.Step() == 8);
+    MINTBOY_REQUIRE(cpu.GetRegisters().a == 0x42);
+}
+
 MINTBOY_TEST(cpu_executes_halt_bug_when_interrupt_is_pending_with_ime_disabled)
 {
     mintboy::Cartridge cartridge = MakeRom({

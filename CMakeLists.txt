@@ -106,6 +106,13 @@ endfunction()
 
 set(MINTBOY_BLARGG_TEST_DIR "${PROJECT_SOURCE_DIR}/rom/tests/gb-test-roms")
 set(MINTBOY_BLARGG_CPU_TEST_DIR "${MINTBOY_BLARGG_TEST_DIR}/cpu_instrs/individual")
+set(MINTBOY_BLARGG_CPU_COMBINED_ROM "${MINTBOY_BLARGG_TEST_DIR}/cpu_instrs/cpu_instrs.gb")
+if(EXISTS "${MINTBOY_BLARGG_CPU_COMBINED_ROM}")
+    add_headless_rom_test("blargg_cpu_instrs" "${MINTBOY_BLARGG_CPU_COMBINED_ROM}" 20000 "Passed all tests")
+else()
+    message(STATUS "Blargg combined CPU instruction test ROM was not found; skipping external combined CPU instruction test")
+endif()
+
 if(EXISTS "${MINTBOY_BLARGG_CPU_TEST_DIR}")
     function(add_blargg_cpu_test test_name frames)
         add_headless_rom_test(

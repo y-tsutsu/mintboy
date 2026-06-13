@@ -177,7 +177,10 @@ namespace mintboy
             return 4;
         case 0x10: // STOP
             FetchByte();
-            stopped_ = true;
+            if (!memory_.ConsumeSpeedSwitchRequest())
+            {
+                stopped_ = true;
+            }
             return 4;
         case 0x01: // LD BC,d16
             registers_.SetBC(FetchWord());

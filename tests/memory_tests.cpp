@@ -61,6 +61,21 @@ MINTBOY_TEST(memory_stores_oam_and_io_registers)
     MINTBOY_REQUIRE(memory.ReadByte(0xFF7F) == 0xBC);
 }
 
+MINTBOY_TEST(memory_tracks_key1_speed_switch_state)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF4D) == 0x7E);
+
+    memory.WriteByte(0xFF4D, 0xFF);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF4D) == 0x7F);
+
+    MINTBOY_REQUIRE(memory.ConsumeSpeedSwitchRequest());
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF4D) == 0xFE);
+    MINTBOY_REQUIRE(!memory.ConsumeSpeedSwitchRequest());
+}
+
 MINTBOY_TEST(memory_maps_apu_registers)
 {
     mintboy::Cartridge cartridge = MakeCartridge();

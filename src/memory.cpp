@@ -30,6 +30,7 @@ namespace mintboy
         constexpr Word ObjectPalette1Address = 0xFF49;
         constexpr Word WindowYAddress = 0xFF4A;
         constexpr Word WindowXAddress = 0xFF4B;
+        constexpr Word Key1Address = 0xFF4D;
         constexpr Byte VBlankInterruptBit = 0x01;
         constexpr Byte LcdStatInterruptBit = 0x02;
         constexpr Byte TimerInterruptBit = 0x04;
@@ -108,6 +109,11 @@ namespace mintboy
             if (address == LcdStatusAddress)
             {
                 return static_cast<Byte>(io_registers_[address - 0xFF00] | 0x80);
+            }
+
+            if (address == Key1Address)
+            {
+                return static_cast<Byte>(0x7E | (double_speed_ ? 0x80 : 0x00) | (prepare_speed_switch_ ? 0x01 : 0x00));
             }
 
             return io_registers_[address - 0xFF00];
@@ -248,6 +254,12 @@ namespace mintboy
                 return;
             }
 
+            if (address == Key1Address)
+            {
+                prepare_speed_switch_ = (value & 0x01) != 0;
+                return;
+            }
+
             if (address == LyAddress)
             {
                 io_registers_[LyAddress - 0xFF00] = 0;
@@ -372,6 +384,18 @@ namespace mintboy
     void Memory::SetVideoRenderingEnabled(bool enabled)
     {
         video_rendering_enabled_ = enabled;
+    }
+
+    bool Memory::ConsumeSpeedSwitchRequest()
+    {
+        if (!prepare_speed_switch_)
+        {
+            return false;
+        }
+
+        prepare_speed_switch_ = false;
+        double_speed_ = !double_speed_;
+        return true;
     }
 
     std::string Memory::DrainSerialOutput()

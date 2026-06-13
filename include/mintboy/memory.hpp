@@ -36,6 +36,7 @@ namespace mintboy
         [[nodiscard]] const Framebuffer &GetFramebuffer() const;
         void SetJoypadButton(JoypadButton button, bool pressed);
         void WriteByte(Word address, Byte value);
+        bool ConsumeSpeedSwitchRequest();
         void CorruptOamForRead(Word address);
         void CorruptOamForWrite(Word address);
         void Tick(int cycles);
@@ -76,6 +77,8 @@ namespace mintboy
         Framebuffer framebuffer_{};
         Byte interrupt_enable_ = 0;
         Byte joypad_buttons_ = 0;
+        bool prepare_speed_switch_ = false;
+        bool double_speed_ = false;
         mutable Byte last_traced_joypad_value_ = 0xFF;
         mutable Byte last_traced_joypad_buttons_ = 0xFF;
         int divider_cycles_ = 0;
