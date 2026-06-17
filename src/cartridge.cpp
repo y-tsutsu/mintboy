@@ -17,6 +17,7 @@ namespace mintboy
         constexpr std::size_t RamSizeAddress = 0x0149;
         constexpr std::size_t HeaderChecksumAddress = 0x014D;
         constexpr std::size_t MinimumRomSize = 0x0150;
+        constexpr std::size_t Mbc2RamSize = 512;
 
         constexpr std::array<std::size_t, 9> RomSizeTable = {
             32 * 1024,
@@ -39,7 +40,7 @@ namespace mintboy
             throw std::invalid_argument("ROM image is too small to contain a Game Boy header");
         }
 
-        external_ram_.resize(RamSizeBytes(), 0);
+        external_ram_.resize(IsMbc2() ? Mbc2RamSize : RamSizeBytes(), 0);
     }
 
     Cartridge Cartridge::LoadFromFile(const std::filesystem::path &path)
@@ -69,11 +70,11 @@ namespace mintboy
     {
         std::size_t resolved_address = address;
 
-        if ((IsMbc1() || IsMbc3() || IsMbc5()) && address <= 0x3FFF)
+        if ((IsMbc1() || IsMbc2() || IsMbc3() || IsMbc5()) && address <= 0x3FFF)
         {
             resolved_address = (SelectedFixedRomBank() * 0x4000) + address;
         }
-        else if ((IsMbc1() || IsMbc3() || IsMbc5()) && address >= 0x4000 && address <= 0x7FFF)
+        else if ((IsMbc1() || IsMbc2() || IsMbc3() || IsMbc5()) && address >= 0x4000 && address <= 0x7FFF)
         {
             resolved_address = (SelectedRomBank() * 0x4000) + (address - 0x4000);
         }
@@ -93,19 +94,40 @@ namespace mintboy
             return 0xFF;
         }
 
-        const std::size_t resolved_address = (SelectedRamBank() * 0x2000) + (address - 0xA000);
+        const std::size_t resolved_address = IsMbc2()
+                                                 ? static_cast<std::size_t>(address & 0x01FF)
+                                                 : (SelectedRamBank() * 0x2000) + (address - 0xA000);
         if (resolved_address >= external_ram_.size())
         {
             return 0xFF;
         }
 
-        return external_ram_[resolved_address];
+        return IsMbc2() ? static_cast<Byte>(0xF0 | (external_ram_[resolved_address] & 0x0F)) : external_ram_[resolved_address];
     }
 
     void Cartridge::Write(Word address, Byte value)
     {
-        if ((!IsMbc1() && !IsMbc3() && !IsMbc5()) || address > 0x7FFF)
+        if ((!IsMbc1() && !IsMbc2() && !IsMbc3() && !IsMbc5()) || address > 0x7FFF)
         {
+            return;
+        }
+
+        if (IsMbc2())
+        {
+            if (address <= 0x3FFF)
+            {
+                if ((address & 0x0100) == 0)
+                {
+                    external_ram_enabled_ = (value & 0x0F) == 0x0A;
+                    return;
+                }
+
+                mbc2_rom_bank_ = static_cast<Byte>(value & 0x0F);
+                if (mbc2_rom_bank_ == 0)
+                {
+                    mbc2_rom_bank_ = 1;
+                }
+            }
             return;
         }
 
@@ -177,13 +199,15 @@ namespace mintboy
             return;
         }
 
-        const std::size_t resolved_address = (SelectedRamBank() * 0x2000) + (address - 0xA000);
+        const std::size_t resolved_address = IsMbc2()
+                                                 ? static_cast<std::size_t>(address & 0x01FF)
+                                                 : (SelectedRamBank() * 0x2000) + (address - 0xA000);
         if (resolved_address >= external_ram_.size())
         {
             return;
         }
 
-        external_ram_[resolved_address] = value;
+        external_ram_[resolved_address] = IsMbc2() ? static_cast<Byte>(value & 0x0F) : value;
         external_ram_dirty_ = true;
     }
 
@@ -265,6 +289,10 @@ namespace mintboy
             return "MBC1+RAM";
         case 0x03:
             return "MBC1+RAM+BATTERY";
+        case 0x05:
+            return "MBC2";
+        case 0x06:
+            return "MBC2+BATTERY";
         case 0x0F:
             return "MBC3+TIMER+BATTERY";
         case 0x10:
@@ -342,6 +370,7 @@ namespace mintboy
         switch (CartridgeType())
         {
         case 0x03:
+        case 0x06:
         case 0x0F:
         case 0x10:
         case 0x13:
@@ -380,6 +409,12 @@ namespace mintboy
         return type == 0x01 || type == 0x02 || type == 0x03;
     }
 
+    bool Cartridge::IsMbc2() const
+    {
+        const Byte type = CartridgeType();
+        return type == 0x05 || type == 0x06;
+    }
+
     bool Cartridge::IsMbc3() const
     {
         const Byte type = CartridgeType();
@@ -394,7 +429,7 @@ namespace mintboy
 
     std::size_t Cartridge::SelectedFixedRomBank() const
     {
-        if (IsMbc3() || IsMbc5())
+        if (IsMbc2() || IsMbc3() || IsMbc5())
         {
             return 0;
         }
@@ -423,6 +458,17 @@ namespace mintboy
                 return 1;
             }
             const std::size_t bank = mbc3_rom_bank_ % bank_count;
+            return bank == 0 ? 1 : bank;
+        }
+
+        if (IsMbc2())
+        {
+            const std::size_t bank_count = RomBankCount();
+            if (bank_count == 0)
+            {
+                return 1;
+            }
+            const std::size_t bank = mbc2_rom_bank_ % bank_count;
             return bank == 0 ? 1 : bank;
         }
 

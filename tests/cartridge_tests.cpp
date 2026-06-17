@@ -176,6 +176,52 @@ MINTBOY_TEST(cartridge_switches_mbc1_external_ram_banks)
     MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x30);
 }
 
+MINTBOY_TEST(cartridge_switches_mbc2_rom_banks_and_internal_ram)
+{
+    std::vector<mintboy::Byte> rom(256 * 1024, 0);
+    rom[0x0147] = 0x06;
+    rom[0x0148] = 0x03;
+    rom[0x0149] = 0x00;
+
+    for (std::size_t bank = 0; bank < 16; ++bank)
+    {
+        rom[(bank * 0x4000) + 0x0100] = static_cast<mintboy::Byte>(bank);
+    }
+
+    mintboy::Cartridge cartridge(std::move(rom));
+
+    MINTBOY_REQUIRE(cartridge.CartridgeTypeName() == "MBC2+BATTERY");
+    MINTBOY_REQUIRE(cartridge.HasBattery());
+    MINTBOY_REQUIRE(cartridge.HasExternalRam());
+    MINTBOY_REQUIRE(cartridge.RamSizeBytes() == 0);
+    MINTBOY_REQUIRE(cartridge.Read(0x0100) == 0x00);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x01);
+
+    cartridge.Write(0x2100, 0x05);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x05);
+
+    cartridge.Write(0x2100, 0x00);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x01);
+
+    cartridge.WriteRam(0xA000, 0x12);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0xFF);
+
+    cartridge.Write(0x0000, 0x0A);
+    cartridge.WriteRam(0xA000, 0x2C);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0xFC);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA200) == 0xFC);
+
+    cartridge.WriteRam(0xA1FF, 0x07);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA1FF) == 0xF7);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA3FF) == 0xF7);
+
+    cartridge.Write(0x0100, 0x00);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0xFC);
+
+    cartridge.Write(0x0200, 0x00);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0xFF);
+}
+
 MINTBOY_TEST(cartridge_switches_mbc3_rom_and_ram_banks)
 {
     std::vector<mintboy::Byte> rom(512 * 1024, 0);
@@ -289,6 +335,37 @@ MINTBOY_TEST(cartridge_loads_and_saves_battery_ram)
     reloaded.Write(0x0000, 0x0A);
 
     MINTBOY_REQUIRE(reloaded.ReadRam(0xA000) == 0x42);
+
+    std::filesystem::remove(save_path);
+}
+
+MINTBOY_TEST(cartridge_loads_and_saves_mbc2_internal_ram)
+{
+    const std::filesystem::path save_path = TempPath("mbc2_ram.sav");
+    std::filesystem::remove(save_path);
+
+    std::vector<mintboy::Byte> rom(256 * 1024, 0);
+    rom[0x0147] = 0x06;
+    rom[0x0148] = 0x03;
+    rom[0x0149] = 0x00;
+
+    mintboy::Cartridge cartridge(std::move(rom));
+    cartridge.Write(0x0000, 0x0A);
+    cartridge.WriteRam(0xA123, 0x4B);
+    MINTBOY_REQUIRE(cartridge.IsRamDirty());
+
+    cartridge.SaveRamToFile(save_path);
+
+    std::vector<mintboy::Byte> reloaded_rom(256 * 1024, 0);
+    reloaded_rom[0x0147] = 0x06;
+    reloaded_rom[0x0148] = 0x03;
+    reloaded_rom[0x0149] = 0x00;
+    mintboy::Cartridge reloaded(std::move(reloaded_rom));
+    reloaded.LoadRamFromFile(save_path);
+    reloaded.Write(0x0000, 0x0A);
+
+    MINTBOY_REQUIRE(reloaded.ReadRam(0xA123) == 0xFB);
+    MINTBOY_REQUIRE(std::filesystem::file_size(save_path) == 512);
 
     std::filesystem::remove(save_path);
 }
