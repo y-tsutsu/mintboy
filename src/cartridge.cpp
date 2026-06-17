@@ -69,11 +69,11 @@ namespace mintboy
     {
         std::size_t resolved_address = address;
 
-        if ((IsMbc1() || IsMbc3()) && address <= 0x3FFF)
+        if ((IsMbc1() || IsMbc3() || IsMbc5()) && address <= 0x3FFF)
         {
             resolved_address = (SelectedFixedRomBank() * 0x4000) + address;
         }
-        else if ((IsMbc1() || IsMbc3()) && address >= 0x4000 && address <= 0x7FFF)
+        else if ((IsMbc1() || IsMbc3() || IsMbc5()) && address >= 0x4000 && address <= 0x7FFF)
         {
             resolved_address = (SelectedRomBank() * 0x4000) + (address - 0x4000);
         }
@@ -104,7 +104,7 @@ namespace mintboy
 
     void Cartridge::Write(Word address, Byte value)
     {
-        if ((!IsMbc1() && !IsMbc3()) || address > 0x7FFF)
+        if ((!IsMbc1() && !IsMbc3() && !IsMbc5()) || address > 0x7FFF)
         {
             return;
         }
@@ -125,13 +125,21 @@ namespace mintboy
                     mbc1_rom_bank_low_ = 1;
                 }
             }
-            else
+            else if (IsMbc3())
             {
                 mbc3_rom_bank_ = static_cast<Byte>(value & 0x7F);
                 if (mbc3_rom_bank_ == 0)
                 {
                     mbc3_rom_bank_ = 1;
                 }
+            }
+            else if (address <= 0x2FFF)
+            {
+                mbc5_rom_bank_ = static_cast<Word>((mbc5_rom_bank_ & 0x100) | value);
+            }
+            else
+            {
+                mbc5_rom_bank_ = static_cast<Word>((mbc5_rom_bank_ & 0x0FF) | ((value & 0x01) << 8));
             }
             return;
         }
@@ -142,9 +150,13 @@ namespace mintboy
             {
                 mbc1_bank_high_ = static_cast<Byte>(value & 0x03);
             }
-            else
+            else if (IsMbc3())
             {
                 mbc3_ram_bank_ = static_cast<Byte>(value & 0x0F);
+            }
+            else
+            {
+                mbc5_ram_bank_ = static_cast<Byte>(value & 0x0F);
             }
             return;
         }
@@ -263,6 +275,18 @@ namespace mintboy
             return "MBC3+RAM";
         case 0x13:
             return "MBC3+RAM+BATTERY";
+        case 0x19:
+            return "MBC5";
+        case 0x1A:
+            return "MBC5+RAM";
+        case 0x1B:
+            return "MBC5+RAM+BATTERY";
+        case 0x1C:
+            return "MBC5+RUMBLE";
+        case 0x1D:
+            return "MBC5+RUMBLE+RAM";
+        case 0x1E:
+            return "MBC5+RUMBLE+RAM+BATTERY";
         default:
             return "UNKNOWN";
         }
@@ -321,6 +345,8 @@ namespace mintboy
         case 0x0F:
         case 0x10:
         case 0x13:
+        case 0x1B:
+        case 0x1E:
             return true;
         default:
             return false;
@@ -360,9 +386,15 @@ namespace mintboy
         return type == 0x0F || type == 0x10 || type == 0x11 || type == 0x12 || type == 0x13;
     }
 
+    bool Cartridge::IsMbc5() const
+    {
+        const Byte type = CartridgeType();
+        return type >= 0x19 && type <= 0x1E;
+    }
+
     std::size_t Cartridge::SelectedFixedRomBank() const
     {
-        if (IsMbc3())
+        if (IsMbc3() || IsMbc5())
         {
             return 0;
         }
@@ -392,6 +424,16 @@ namespace mintboy
             }
             const std::size_t bank = mbc3_rom_bank_ % bank_count;
             return bank == 0 ? 1 : bank;
+        }
+
+        if (IsMbc5())
+        {
+            const std::size_t bank_count = RomBankCount();
+            if (bank_count == 0)
+            {
+                return 0;
+            }
+            return mbc5_rom_bank_ % bank_count;
         }
 
         std::size_t bank = mbc1_rom_bank_low_;
@@ -424,6 +466,16 @@ namespace mintboy
                 return external_ram_.empty() ? 0 : external_ram_.size() / 0x2000;
             }
             return mbc3_ram_bank_;
+        }
+
+        if (IsMbc5())
+        {
+            const std::size_t bank_count = external_ram_.size() / 0x2000;
+            if (bank_count == 0)
+            {
+                return 0;
+            }
+            return mbc5_ram_bank_ % bank_count;
         }
 
         if (!IsMbc1() || mbc1_banking_mode_ == 0)

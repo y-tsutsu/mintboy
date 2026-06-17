@@ -212,6 +212,57 @@ MINTBOY_TEST(cartridge_switches_mbc3_rom_and_ram_banks)
     MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x20);
 }
 
+MINTBOY_TEST(cartridge_switches_mbc5_rom_and_ram_banks)
+{
+    std::vector<mintboy::Byte> rom(8 * 1024 * 1024, 0);
+    rom[0x0147] = 0x1B;
+    rom[0x0148] = 0x08;
+    rom[0x0149] = 0x03;
+
+    for (std::size_t bank = 0; bank < 512; ++bank)
+    {
+        rom[(bank * 0x4000) + 0x0100] = static_cast<mintboy::Byte>(bank & 0xFF);
+        rom[(bank * 0x4000) + 0x0101] = static_cast<mintboy::Byte>((bank >> 8) & 0x01);
+    }
+
+    mintboy::Cartridge cartridge(std::move(rom));
+
+    MINTBOY_REQUIRE(cartridge.CartridgeTypeName() == "MBC5+RAM+BATTERY");
+    MINTBOY_REQUIRE(cartridge.HasBattery());
+    MINTBOY_REQUIRE(cartridge.RomBankCount() == 512);
+    MINTBOY_REQUIRE(cartridge.Read(0x0100) == 0x00);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x01);
+    MINTBOY_REQUIRE(cartridge.Read(0x4101) == 0x00);
+
+    cartridge.Write(0x2000, 0x34);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x34);
+    MINTBOY_REQUIRE(cartridge.Read(0x4101) == 0x00);
+
+    cartridge.Write(0x3000, 0x01);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x34);
+    MINTBOY_REQUIRE(cartridge.Read(0x4101) == 0x01);
+
+    cartridge.Write(0x2000, 0x00);
+    cartridge.Write(0x3000, 0x00);
+    MINTBOY_REQUIRE(cartridge.Read(0x4100) == 0x00);
+    MINTBOY_REQUIRE(cartridge.Read(0x4101) == 0x00);
+
+    cartridge.Write(0x0000, 0x0A);
+    cartridge.Write(0x4000, 0x00);
+    cartridge.WriteRam(0xA000, 0x10);
+    cartridge.Write(0x4000, 0x01);
+    cartridge.WriteRam(0xA000, 0x20);
+    cartridge.Write(0x4000, 0x03);
+    cartridge.WriteRam(0xA000, 0x40);
+
+    cartridge.Write(0x4000, 0x00);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x10);
+    cartridge.Write(0x4000, 0x01);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x20);
+    cartridge.Write(0x4000, 0x03);
+    MINTBOY_REQUIRE(cartridge.ReadRam(0xA000) == 0x40);
+}
+
 MINTBOY_TEST(cartridge_loads_and_saves_battery_ram)
 {
     const std::filesystem::path save_path = TempPath("battery_ram.sav");

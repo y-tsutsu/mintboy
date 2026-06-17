@@ -42,6 +42,7 @@ namespace mintboy
     private:
         [[nodiscard]] bool IsMbc1() const;
         [[nodiscard]] bool IsMbc3() const;
+        [[nodiscard]] bool IsMbc5() const;
         [[nodiscard]] std::size_t SelectedFixedRomBank() const;
         [[nodiscard]] std::size_t SelectedRomBank() const;
         [[nodiscard]] std::size_t SelectedRamBank() const;
@@ -54,6 +55,8 @@ namespace mintboy
         Byte mbc1_banking_mode_ = 0;
         Byte mbc3_rom_bank_ = 1;
         Byte mbc3_ram_bank_ = 0;
+        Word mbc5_rom_bank_ = 1;
+        Byte mbc5_ram_bank_ = 0;
         bool external_ram_enabled_ = false;
         bool external_ram_dirty_ = false;
     };
