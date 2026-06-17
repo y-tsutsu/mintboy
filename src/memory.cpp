@@ -235,12 +235,14 @@ namespace mintboy
                 {
                     ppu_cycles_ = 0;
                     io_registers_[LyAddress - 0xFF00] = 0;
+                    scanline_rendered_ = false;
                     SetPpuMode(0);
                 }
                 else if (!was_enabled)
                 {
                     ppu_cycles_ = 4;
                     io_registers_[LyAddress - 0xFF00] = 0;
+                    scanline_rendered_ = false;
                     SetPpuMode(2);
                 }
                 UpdateLyCompareFlag();
@@ -264,6 +266,7 @@ namespace mintboy
             {
                 io_registers_[LyAddress - 0xFF00] = 0;
                 ppu_cycles_ = 0;
+                scanline_rendered_ = false;
                 UpdateLyCompareFlag();
                 return;
             }
@@ -464,16 +467,28 @@ namespace mintboy
         }
 
         ppu_cycles_ += cycles;
-        while (ppu_cycles_ >= 456)
+        while (true)
         {
-            ppu_cycles_ -= 456;
             Byte &ly = io_registers_[LyAddress - 0xFF00];
-            if (ly < 144 && video_rendering_enabled_)
+            if (ly < 144 && video_rendering_enabled_ && !scanline_rendered_ && ppu_cycles_ >= 252)
+            {
+                RenderScanline(ly);
+                scanline_rendered_ = true;
+            }
+
+            if (ppu_cycles_ < 456)
+            {
+                break;
+            }
+
+            ppu_cycles_ -= 456;
+            if (ly < 144 && video_rendering_enabled_ && !scanline_rendered_)
             {
                 RenderScanline(ly);
             }
 
             ++ly;
+            scanline_rendered_ = false;
 
             if (ly == 144)
             {

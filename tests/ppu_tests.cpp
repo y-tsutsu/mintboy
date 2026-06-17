@@ -157,6 +157,32 @@ MINTBOY_TEST(ppu_renders_background_tiles_from_vram)
     MINTBOY_REQUIRE(framebuffer[8] == 0xFF9BBC0F);
 }
 
+MINTBOY_TEST(ppu_latches_scroll_before_hblank)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0x8000, 0xFF);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x8010, 0x00);
+    memory.WriteByte(0x8011, 0x00);
+    memory.WriteByte(0x9800, 0x00);
+    memory.WriteByte(0x9801, 0x01);
+    memory.WriteByte(0xFF47, 0xE4);
+    memory.WriteByte(0xFF43, 0);
+    memory.WriteByte(0xFF40, 0x91);
+
+    memory.Tick(248);
+    memory.WriteByte(0xFF43, 8);
+    memory.Tick(208);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[0] == 0xFF8BAC0F);
+
+    memory.Tick(248);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF9BBC0F);
+}
+
 MINTBOY_TEST(ppu_renders_window_tiles_over_background)
 {
     mintboy::Cartridge cartridge = MakeCartridge();

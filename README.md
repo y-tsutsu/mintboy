@@ -96,13 +96,14 @@ window_scale = 4
 
 [audio]
 enabled = true
+volume = 0.5
 ```
 
 `mintboy.toml` is ignored by git. Copy `mintboy.example.toml` as a starting point if needed.
 
 On WSL, an SDL2 window requires WSLg or another X/Wayland server.
 
-Audio output is experimental but supports the DMG square, wave, and noise channels.
+Audio output is experimental but supports the DMG square, wave, and noise channels. `audio.volume` accepts values from `0.0` to `1.0`.
 
 Battery-backed cartridge RAM is saved next to the ROM as `game.sav` and loaded automatically on the next run. Save files are ignored by git.
 

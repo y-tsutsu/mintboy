@@ -5,6 +5,7 @@
 #include <SDL.h>
 #include <toml++/toml.hpp>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -23,6 +24,8 @@ namespace
     constexpr int DefaultWindowScale = 4;
     constexpr int CyclesPerFrame = 70224;
     constexpr int AudioSampleRate = 48000;
+    constexpr float DefaultAudioVolume = 0.5F;
+    constexpr float MaximumAudioGain = 0.6F;
     constexpr const char *ConfigFileName = "mintboy.toml";
 
     bool g_trace_input_enabled = false;
@@ -34,6 +37,7 @@ namespace
         bool trace_input = false;
         int window_scale = DefaultWindowScale;
         bool audio_enabled = true;
+        float audio_volume = DefaultAudioVolume;
     };
 
     struct DebugControls
@@ -92,6 +96,14 @@ namespace
         if (const auto value = config["audio"]["enabled"].value<bool>())
         {
             settings.audio_enabled = *value;
+        }
+        if (const auto value = config["audio"]["volume"].value<double>())
+        {
+            if (*value < 0.0 || *value > 1.0)
+            {
+                throw std::runtime_error("audio.volume must be between 0.0 and 1.0");
+            }
+            settings.audio_volume = static_cast<float>(*value);
         }
     }
 
@@ -230,7 +242,8 @@ namespace
     class Audio
     {
     public:
-        Audio()
+        explicit Audio(float volume)
+            : volume_(volume)
         {
             SDL_AudioSpec desired{};
             desired.freq = AudioSampleRate;
@@ -265,7 +278,13 @@ namespace
             {
                 const int available_samples = MaximumQueuedSamples - QueuedSamples();
                 const auto samples_to_queue = static_cast<std::size_t>(std::min<int>(available_samples, static_cast<int>(samples.size())));
-                if (SDL_QueueAudio(device_, samples.data(), static_cast<Uint32>(samples_to_queue * sizeof(float))) != 0)
+                scaled_samples_.resize(samples_to_queue);
+                const float gain = volume_ * MaximumAudioGain;
+                for (std::size_t index = 0; index < samples_to_queue; ++index)
+                {
+                    scaled_samples_[index] = samples[index] * gain;
+                }
+                if (SDL_QueueAudio(device_, scaled_samples_.data(), static_cast<Uint32>(scaled_samples_.size() * sizeof(float))) != 0)
                 {
                     throw std::runtime_error(SDL_GetError());
                 }
@@ -300,6 +319,8 @@ namespace
         SDL_AudioDeviceID device_ = 0;
         SDL_AudioSpec obtained_{};
         std::vector<float> silence_;
+        std::vector<float> scaled_samples_;
+        float volume_ = DefaultAudioVolume;
     };
 
     class Controller
@@ -610,7 +631,7 @@ int main(int argc, char **argv)
         std::optional<Audio> audio;
         if (settings.audio_enabled)
         {
-            audio.emplace();
+            audio.emplace(settings.audio_volume);
         }
         Controller controller(settings.swap_controller_ab);
         DebugControls debug_controls;

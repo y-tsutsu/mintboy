@@ -85,5 +85,6 @@ namespace mintboy
         int timer_cycles_ = 0;
         int ppu_cycles_ = 0;
         bool video_rendering_enabled_ = true;
+        bool scanline_rendered_ = false;
     };
 }

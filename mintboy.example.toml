@@ -11,3 +11,4 @@ window_scale = 4
 
 [audio]
 enabled = true
+volume = 0.5
