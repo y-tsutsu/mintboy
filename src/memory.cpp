@@ -46,6 +46,12 @@ namespace mintboy
         : cartridge_(cartridge)
     {
         io_registers_[JoypadAddress - 0xFF00] = 0x30;
+        io_registers_[LcdControlAddress - 0xFF00] = 0x91;
+        io_registers_[BgPaletteAddress - 0xFF00] = 0xFC;
+        io_registers_[ObjectPalette0Address - 0xFF00] = 0xFF;
+        io_registers_[ObjectPalette1Address - 0xFF00] = 0xFF;
+        SetPpuMode(2);
+        UpdateLyCompareFlag();
     }
 
     Byte Memory::ReadByte(Word address) const

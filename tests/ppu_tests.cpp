@@ -25,6 +25,16 @@ MINTBOY_TEST(ppu_lcd_enable_initializes_mode_and_ly)
     MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 2);
 }
 
+MINTBOY_TEST(ppu_starts_in_post_boot_lcd_state)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF40) == 0x91);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 2);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFF47) == 0xFC);
+}
+
 MINTBOY_TEST(ppu_updates_mode_during_visible_scanline)
 {
     mintboy::Cartridge cartridge = MakeCartridge();
@@ -103,6 +113,7 @@ MINTBOY_TEST(ppu_requests_stat_interrupt_on_mode_transitions)
     mintboy::Cartridge cartridge = MakeCartridge();
     mintboy::Memory memory(cartridge);
 
+    memory.WriteByte(0xFF40, 0x00);
     memory.WriteByte(0xFF41, 0x38);
     memory.WriteByte(0xFF40, 0x80);
 
@@ -162,6 +173,7 @@ MINTBOY_TEST(ppu_latches_scroll_before_hblank)
     mintboy::Cartridge cartridge = MakeCartridge();
     mintboy::Memory memory(cartridge);
 
+    memory.WriteByte(0xFF40, 0x00);
     memory.WriteByte(0x8000, 0xFF);
     memory.WriteByte(0x8001, 0x00);
     memory.WriteByte(0x8010, 0x00);
@@ -244,6 +256,7 @@ MINTBOY_TEST(ppu_oam_dma_copies_160_bytes)
     mintboy::Cartridge cartridge = MakeCartridge();
     mintboy::Memory memory(cartridge);
 
+    memory.WriteByte(0xFF40, 0x00);
     memory.WriteByte(0xC000, 0x11);
     memory.WriteByte(0xC001, 0x22);
     memory.WriteByte(0xC09F, 0x33);
@@ -260,6 +273,7 @@ MINTBOY_TEST(ppu_renders_sprite_pixels_from_oam)
     mintboy::Cartridge cartridge = MakeCartridge();
     mintboy::Memory memory(cartridge);
 
+    memory.WriteByte(0xFF40, 0x00);
     memory.WriteByte(0x8000, 0x80);
     memory.WriteByte(0x8001, 0x00);
     memory.WriteByte(0xFE00, 16);
@@ -281,6 +295,7 @@ MINTBOY_TEST(ppu_respects_sprite_background_priority)
     mintboy::Cartridge cartridge = MakeCartridge();
     mintboy::Memory memory(cartridge);
 
+    memory.WriteByte(0xFF40, 0x00);
     memory.WriteByte(0x8000, 0xFF);
     memory.WriteByte(0x8001, 0x00);
     memory.WriteByte(0x8002, 0xFF);

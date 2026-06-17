@@ -52,6 +52,7 @@ MINTBOY_TEST(memory_stores_oam_and_io_registers)
     mintboy::Cartridge cartridge = MakeCartridge();
     mintboy::Memory memory(cartridge);
 
+    memory.WriteByte(0xFF40, 0x00);
     memory.WriteByte(0xFE00, 0x56);
     memory.WriteByte(0xFE9F, 0x78);
     memory.WriteByte(0xFF7F, 0xBC);
