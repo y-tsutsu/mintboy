@@ -65,6 +65,7 @@ namespace mintboy
         void RequestStatInterrupt(Byte source_bit);
         void RequestInterrupt(Byte bit);
         void UpdateLyCompareFlag();
+        void LatchScanlineRegisters();
 
         Cartridge &cartridge_;
         Apu apu_{};
@@ -86,5 +87,7 @@ namespace mintboy
         int ppu_cycles_ = 0;
         bool video_rendering_enabled_ = true;
         bool scanline_rendered_ = false;
+        Byte latched_scroll_x_ = 0;
+        Byte latched_scroll_y_ = 0;
     };
 }

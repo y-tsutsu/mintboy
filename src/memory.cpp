@@ -50,6 +50,7 @@ namespace mintboy
         io_registers_[BgPaletteAddress - 0xFF00] = 0xFC;
         io_registers_[ObjectPalette0Address - 0xFF00] = 0xFF;
         io_registers_[ObjectPalette1Address - 0xFF00] = 0xFF;
+        LatchScanlineRegisters();
         SetPpuMode(2);
         UpdateLyCompareFlag();
     }
@@ -249,6 +250,7 @@ namespace mintboy
                     ppu_cycles_ = 4;
                     io_registers_[LyAddress - 0xFF00] = 0;
                     scanline_rendered_ = false;
+                    LatchScanlineRegisters();
                     SetPpuMode(2);
                 }
                 UpdateLyCompareFlag();
@@ -273,6 +275,7 @@ namespace mintboy
                 io_registers_[LyAddress - 0xFF00] = 0;
                 ppu_cycles_ = 0;
                 scanline_rendered_ = false;
+                LatchScanlineRegisters();
                 UpdateLyCompareFlag();
                 return;
             }
@@ -495,6 +498,7 @@ namespace mintboy
 
             ++ly;
             scanline_rendered_ = false;
+            LatchScanlineRegisters();
 
             if (ly == 144)
             {
@@ -504,6 +508,7 @@ namespace mintboy
             else if (ly > 153)
             {
                 ly = 0;
+                LatchScanlineRegisters();
                 SetPpuMode(2);
             }
 
@@ -558,6 +563,12 @@ namespace mintboy
         }
     }
 
+    void Memory::LatchScanlineRegisters()
+    {
+        latched_scroll_x_ = io_registers_[ScrollXAddress - 0xFF00];
+        latched_scroll_y_ = io_registers_[ScrollYAddress - 0xFF00];
+    }
+
     void Memory::RenderScanline(Byte y)
     {
         const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
@@ -576,8 +587,8 @@ namespace mintboy
 
         const Word tile_map_base = (lcd_control & 0x08) != 0 ? 0x1C00 : 0x1800;
         const bool unsigned_tile_index = (lcd_control & 0x10) != 0;
-        const Byte scroll_y = io_registers_[ScrollYAddress - 0xFF00];
-        const Byte scroll_x = io_registers_[ScrollXAddress - 0xFF00];
+        const Byte scroll_y = latched_scroll_y_;
+        const Byte scroll_x = latched_scroll_x_;
         const Byte bg_palette = io_registers_[BgPaletteAddress - 0xFF00];
         const bool window_enabled = (lcd_control & 0x20) != 0;
         const Byte window_y = io_registers_[WindowYAddress - 0xFF00];
