@@ -223,6 +223,29 @@ MINTBOY_TEST(ppu_latches_scroll_at_scanline_start)
     MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF9BBC0F);
 }
 
+MINTBOY_TEST(ppu_extends_pixel_transfer_by_scx_low_bits)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF40, 0x00);
+    memory.WriteByte(0x8000, 0xFF);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x9800, 0x00);
+    memory.WriteByte(0xFF47, 0xE4);
+    memory.WriteByte(0xFF43, 7);
+    memory.WriteByte(0xFF40, 0x91);
+
+    memory.Tick(252);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 3);
+
+    memory.Tick(7);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 0);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[0] == 0xFF8BAC0F);
+}
+
 MINTBOY_TEST(ppu_latches_window_state_at_scanline_start)
 {
     mintboy::Cartridge cartridge = MakeCartridge();

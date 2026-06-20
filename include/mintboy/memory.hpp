@@ -66,6 +66,7 @@ namespace mintboy
         void RequestInterrupt(Byte bit);
         void UpdateLyCompareFlag();
         void LatchScanlineRegisters();
+        [[nodiscard]] int PixelTransferEndCycle() const;
 
         Cartridge &cartridge_;
         Apu apu_{};

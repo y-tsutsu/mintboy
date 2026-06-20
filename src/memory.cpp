@@ -481,7 +481,8 @@ namespace mintboy
         while (true)
         {
             Byte &ly = io_registers_[LyAddress - 0xFF00];
-            if (ly < 144 && video_rendering_enabled_ && !scanline_rendered_ && ppu_cycles_ >= 252)
+            const int pixel_transfer_end_cycle = PixelTransferEndCycle();
+            if (ly < 144 && video_rendering_enabled_ && !scanline_rendered_ && ppu_cycles_ >= pixel_transfer_end_cycle)
             {
                 RenderScanline(ly);
                 scanline_rendered_ = true;
@@ -528,7 +529,7 @@ namespace mintboy
         {
             SetPpuMode(2);
         }
-        else if (ppu_cycles_ < 252)
+        else if (ppu_cycles_ < PixelTransferEndCycle())
         {
             SetPpuMode(3);
         }
@@ -575,6 +576,11 @@ namespace mintboy
         latched_bg_palette_ = io_registers_[BgPaletteAddress - 0xFF00];
         latched_object_palette0_ = io_registers_[ObjectPalette0Address - 0xFF00];
         latched_object_palette1_ = io_registers_[ObjectPalette1Address - 0xFF00];
+    }
+
+    int Memory::PixelTransferEndCycle() const
+    {
+        return 252 + (latched_scroll_x_ & 0x07);
     }
 
     void Memory::RenderScanline(Byte y)
