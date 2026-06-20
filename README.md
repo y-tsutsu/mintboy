@@ -27,7 +27,7 @@ $ cmake --build --preset debug --parallel
 $ ctest --preset debug
 ```
 
-The build output is written to the ignored `build/` directory. The Debian 13 packages are available as `ninja-build`, `libsdl2-dev`, and `libtomlplusplus-dev`. If SDL2 is not installed, CMake still builds the CLI fallback and tests. The `mintboy_info` executable prints ROM header information.
+The build output is written to the ignored `build/` directory. The Debian 13 packages are available as `ninja-build`, `libsdl2-dev`, and `libtomlplusplus-dev`. If SDL2 is not installed, CMake still builds the CLI fallback and tests. The `mintboy_info` executable prints ROM header information, including the DMG/CGB compatibility flag.
 
 If `build/` already exists from an older Makefiles-based configuration, delete and recreate it before switching to the Ninja presets.
 
@@ -106,6 +106,8 @@ On WSL, an SDL2 window requires WSLg or another X/Wayland server.
 Audio output is experimental but supports the DMG square, wave, and noise channels. `audio.volume` accepts values from `0.0` to `1.0`.
 
 Battery-backed cartridge RAM is saved next to the ROM as `game.sav` and loaded automatically on the next run. Save files are ignored by git.
+
+mintboy currently runs in DMG mode. DMG/CGB-compatible ROMs may run using their DMG behavior, but CGB-only ROMs are not supported yet.
 
 Keyboard controls:
 

@@ -12,6 +12,7 @@ namespace mintboy
     {
         constexpr std::size_t HeaderTitleBegin = 0x0134;
         constexpr std::size_t HeaderTitleEnd = 0x0143;
+        constexpr std::size_t CgbFlagAddress = 0x0143;
         constexpr std::size_t CartridgeTypeAddress = 0x0147;
         constexpr std::size_t RomSizeAddress = 0x0148;
         constexpr std::size_t RamSizeAddress = 0x0149;
@@ -267,9 +268,37 @@ namespace mintboy
     std::string Cartridge::Title() const
     {
         const auto begin = data_.begin() + HeaderTitleBegin;
-        const auto end = data_.begin() + HeaderTitleEnd + 1;
+        const auto end = data_.begin() + (SupportsCgb() ? CgbFlagAddress : HeaderTitleEnd + 1);
         const auto terminator = std::find(begin, end, 0);
         return std::string(begin, terminator);
+    }
+
+    Byte Cartridge::CgbFlag() const
+    {
+        return data_[CgbFlagAddress];
+    }
+
+    std::string Cartridge::HardwareCompatibilityName() const
+    {
+        if (RequiresCgb())
+        {
+            return "CGB only";
+        }
+        if (SupportsCgb())
+        {
+            return "DMG/CGB";
+        }
+        return "DMG";
+    }
+
+    bool Cartridge::SupportsCgb() const
+    {
+        return CgbFlag() == 0x80 || CgbFlag() == 0xC0;
+    }
+
+    bool Cartridge::RequiresCgb() const
+    {
+        return CgbFlag() == 0xC0;
     }
 
     Byte Cartridge::CartridgeType() const

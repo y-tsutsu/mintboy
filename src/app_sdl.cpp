@@ -620,6 +620,10 @@ int main(int argc, char **argv)
         g_trace_input_enabled = settings.trace_input;
 
         mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(settings.rom_path->string());
+        if (cartridge.RequiresCgb())
+        {
+            std::cerr << "warning: this ROM requires Game Boy Color hardware; mintboy currently runs in DMG mode\n";
+        }
         mintboy::Memory memory(cartridge);
         mintboy::Cpu cpu(memory);
 

@@ -47,6 +47,10 @@ MINTBOY_TEST(cartridge_reads_header_fields)
     mintboy::Cartridge cartridge(MakeRomWithHeader());
 
     MINTBOY_REQUIRE(cartridge.Title() == "MINTBOY");
+    MINTBOY_REQUIRE(cartridge.CgbFlag() == 0x00);
+    MINTBOY_REQUIRE(cartridge.HardwareCompatibilityName() == "DMG");
+    MINTBOY_REQUIRE(!cartridge.SupportsCgb());
+    MINTBOY_REQUIRE(!cartridge.RequiresCgb());
     MINTBOY_REQUIRE(cartridge.CartridgeType() == 0x00);
     MINTBOY_REQUIRE(cartridge.CartridgeTypeName() == "ROM ONLY");
     MINTBOY_REQUIRE(cartridge.RomSizeCode() == 0x00);
@@ -55,6 +59,33 @@ MINTBOY_TEST(cartridge_reads_header_fields)
     MINTBOY_REQUIRE(cartridge.RamSizeCode() == 0x00);
     MINTBOY_REQUIRE(cartridge.RamSizeBytes() == 0);
     MINTBOY_REQUIRE(cartridge.HasValidHeaderChecksum());
+}
+
+MINTBOY_TEST(cartridge_reads_cgb_compatibility_flag)
+{
+    std::vector<mintboy::Byte> compatible_rom = MakeRomWithHeader();
+    const std::string compatible_title = "CGBCOMPATIBLE!";
+    std::copy(compatible_title.begin(), compatible_title.end(), compatible_rom.begin() + 0x0134);
+    compatible_rom[0x0143] = 0x80;
+
+    mintboy::Cartridge compatible_cartridge(std::move(compatible_rom));
+    MINTBOY_REQUIRE(compatible_cartridge.Title() == "CGBCOMPATIBLE!");
+    MINTBOY_REQUIRE(compatible_cartridge.CgbFlag() == 0x80);
+    MINTBOY_REQUIRE(compatible_cartridge.HardwareCompatibilityName() == "DMG/CGB");
+    MINTBOY_REQUIRE(compatible_cartridge.SupportsCgb());
+    MINTBOY_REQUIRE(!compatible_cartridge.RequiresCgb());
+
+    std::vector<mintboy::Byte> only_rom = MakeRomWithHeader();
+    const std::string only_title = "CGBONLY";
+    std::copy(only_title.begin(), only_title.end(), only_rom.begin() + 0x0134);
+    only_rom[0x0143] = 0xC0;
+
+    mintboy::Cartridge only_cartridge(std::move(only_rom));
+    MINTBOY_REQUIRE(only_cartridge.Title() == "CGBONLY");
+    MINTBOY_REQUIRE(only_cartridge.CgbFlag() == 0xC0);
+    MINTBOY_REQUIRE(only_cartridge.HardwareCompatibilityName() == "CGB only");
+    MINTBOY_REQUIRE(only_cartridge.SupportsCgb());
+    MINTBOY_REQUIRE(only_cartridge.RequiresCgb());
 }
 
 MINTBOY_TEST(cartridge_returns_ff_for_out_of_range_reads)

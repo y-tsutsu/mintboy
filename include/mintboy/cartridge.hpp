@@ -27,6 +27,10 @@ namespace mintboy
 
         [[nodiscard]] const std::vector<Byte> &Data() const;
         [[nodiscard]] std::string Title() const;
+        [[nodiscard]] Byte CgbFlag() const;
+        [[nodiscard]] std::string HardwareCompatibilityName() const;
+        [[nodiscard]] bool SupportsCgb() const;
+        [[nodiscard]] bool RequiresCgb() const;
         [[nodiscard]] Byte CartridgeType() const;
         [[nodiscard]] std::string CartridgeTypeName() const;
         [[nodiscard]] Byte RomSizeCode() const;

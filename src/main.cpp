@@ -16,6 +16,8 @@ int main(int argc, char **argv)
     {
         const mintboy::Cartridge cartridge = mintboy::Cartridge::LoadFromFile(argv[1]);
         std::cout << "Title: " << cartridge.Title() << '\n';
+        std::cout << "Hardware: " << cartridge.HardwareCompatibilityName()
+                  << " (CGB flag: 0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(cartridge.CgbFlag()) << ")\n";
         std::cout << "Cartridge type: 0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(cartridge.CartridgeType())
                   << " (" << cartridge.CartridgeTypeName() << ")\n";
         std::cout << "ROM size code: 0x" << std::hex << std::setw(2) << static_cast<int>(cartridge.RomSizeCode())
