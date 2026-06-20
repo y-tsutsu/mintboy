@@ -376,3 +376,40 @@ MINTBOY_TEST(ppu_respects_sprite_background_priority)
     const auto &framebuffer = memory.GetFramebuffer();
     MINTBOY_REQUIRE(framebuffer[0] == 0xFF8BAC0F);
 }
+
+MINTBOY_TEST(ppu_prioritizes_sprites_by_x_then_oam_order)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF40, 0x00);
+    memory.WriteByte(0x8000, 0xFF);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x8010, 0x00);
+    memory.WriteByte(0x8011, 0xFF);
+    memory.WriteByte(0xFF48, 0xE4);
+
+    memory.WriteByte(0xFE00, 16);
+    memory.WriteByte(0xFE01, 24);
+    memory.WriteByte(0xFE02, 0);
+    memory.WriteByte(0xFE03, 0);
+    memory.WriteByte(0xFE04, 16);
+    memory.WriteByte(0xFE05, 23);
+    memory.WriteByte(0xFE06, 1);
+    memory.WriteByte(0xFE07, 0);
+    memory.WriteByte(0xFF40, 0x93);
+
+    memory.Tick(456);
+
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[16] == 0xFF306230);
+
+    memory.WriteByte(0xFF40, 0x00);
+    memory.WriteByte(0xFE01, 24);
+    memory.WriteByte(0xFE05, 24);
+    memory.WriteByte(0xFF40, 0x93);
+
+    memory.Tick(456);
+
+    MINTBOY_REQUIRE(framebuffer[16] == 0xFF8BAC0F);
+}

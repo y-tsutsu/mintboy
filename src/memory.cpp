@@ -1,5 +1,7 @@
 #include "mintboy/memory.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <format>
 #include <iostream>
@@ -628,6 +630,12 @@ namespace mintboy
 
     void Memory::RenderSprites(Byte y, std::array<Byte, ScreenWidth> &background_color_indices)
     {
+        struct SpriteCandidate
+        {
+            std::size_t index = 0;
+            int x = 0;
+        };
+
         const Byte lcd_control = latched_lcd_control_;
         if ((lcd_control & 0x02) == 0)
         {
@@ -635,21 +643,39 @@ namespace mintboy
         }
 
         const int sprite_height = (lcd_control & 0x04) != 0 ? 16 : 8;
-        int rendered_sprites = 0;
-        for (std::size_t sprite = 0; sprite < 40 && rendered_sprites < 10; ++sprite)
+        std::array<SpriteCandidate, 10> sprites{};
+        std::size_t sprite_count = 0;
+        for (std::size_t sprite = 0; sprite < 40 && sprite_count < sprites.size(); ++sprite)
         {
             const std::size_t base = sprite * 4;
             const int sprite_y = static_cast<int>(oam_[base]) - 16;
             const int sprite_x = static_cast<int>(oam_[base + 1]) - 8;
-            Byte tile_index = oam_[base + 2];
-            const Byte attributes = oam_[base + 3];
 
             if (static_cast<int>(y) < sprite_y || static_cast<int>(y) >= sprite_y + sprite_height)
             {
                 continue;
             }
 
-            ++rendered_sprites;
+            sprites[sprite_count++] = SpriteCandidate{sprite, sprite_x};
+        }
+
+        std::stable_sort(sprites.begin(), sprites.begin() + static_cast<std::ptrdiff_t>(sprite_count),
+                         [](const SpriteCandidate &left, const SpriteCandidate &right) {
+                             if (left.x != right.x)
+                             {
+                                 return left.x > right.x;
+                             }
+                             return left.index > right.index;
+                         });
+
+        for (std::size_t candidate = 0; candidate < sprite_count; ++candidate)
+        {
+            const std::size_t sprite = sprites[candidate].index;
+            const std::size_t base = sprite * 4;
+            const int sprite_y = static_cast<int>(oam_[base]) - 16;
+            const int sprite_x = static_cast<int>(oam_[base + 1]) - 8;
+            Byte tile_index = oam_[base + 2];
+            const Byte attributes = oam_[base + 3];
             const bool behind_background = (attributes & 0x80) != 0;
             const bool y_flip = (attributes & 0x40) != 0;
             const bool x_flip = (attributes & 0x20) != 0;
