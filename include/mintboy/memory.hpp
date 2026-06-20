@@ -57,6 +57,8 @@ namespace mintboy
         void StartDmaTransfer(Byte source_high);
         [[nodiscard]] bool IsOamBugAddress(Word address) const;
         [[nodiscard]] bool IsOamBugActive() const;
+        [[nodiscard]] bool IsVramAccessible() const;
+        [[nodiscard]] bool IsOamAccessible() const;
         [[nodiscard]] std::uint16_t ReadOamWord(std::size_t row, std::size_t word) const;
         void WriteOamWord(std::size_t row, std::size_t word, std::uint16_t value);
         void ApplyOamReadCorruption();

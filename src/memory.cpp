@@ -66,6 +66,10 @@ namespace mintboy
 
         if (address >= 0x8000 && address <= 0x9FFF)
         {
+            if (!IsVramAccessible())
+            {
+                return 0xFF;
+            }
             return video_ram_[address - 0x8000];
         }
 
@@ -86,7 +90,7 @@ namespace mintboy
 
         if (address >= 0xFE00 && address <= 0xFE9F)
         {
-            if (IsOamBugActive())
+            if (!IsOamAccessible())
             {
                 return 0xFF;
             }
@@ -156,6 +160,10 @@ namespace mintboy
 
         if (address >= 0x8000 && address <= 0x9FFF)
         {
+            if (!IsVramAccessible())
+            {
+                return;
+            }
             video_ram_[address - 0x8000] = value;
             return;
         }
@@ -180,7 +188,7 @@ namespace mintboy
 
         if (address >= 0xFE00 && address <= 0xFE9F)
         {
-            if (IsOamBugActive())
+            if (!IsOamAccessible())
             {
                 return;
             }
@@ -780,6 +788,20 @@ namespace mintboy
         const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
         const Byte ly = io_registers_[LyAddress - 0xFF00];
         return (lcd_control & LcdEnabledBit) != 0 && ly < 144 && ppu_cycles_ < 80;
+    }
+
+    bool Memory::IsVramAccessible() const
+    {
+        const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
+        const Byte ly = io_registers_[LyAddress - 0xFF00];
+        return (lcd_control & LcdEnabledBit) == 0 || ly >= 144 || ppu_cycles_ < 80 || ppu_cycles_ >= PixelTransferEndCycle();
+    }
+
+    bool Memory::IsOamAccessible() const
+    {
+        const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
+        const Byte ly = io_registers_[LyAddress - 0xFF00];
+        return (lcd_control & LcdEnabledBit) == 0 || ly >= 144 || ppu_cycles_ >= PixelTransferEndCycle();
     }
 
     std::uint16_t Memory::ReadOamWord(std::size_t row, std::size_t word) const

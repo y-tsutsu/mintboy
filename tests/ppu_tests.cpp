@@ -54,6 +54,54 @@ MINTBOY_TEST(ppu_updates_mode_during_visible_scanline)
     MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 2);
 }
 
+MINTBOY_TEST(ppu_blocks_cpu_vram_access_during_pixel_transfer)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF40, 0x00);
+    memory.WriteByte(0x8000, 0x12);
+    memory.WriteByte(0xFF40, 0x91);
+
+    memory.Tick(80);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 3);
+    MINTBOY_REQUIRE(memory.ReadByte(0x8000) == 0xFF);
+
+    memory.WriteByte(0x8000, 0x34);
+    memory.Tick(172);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 0);
+    MINTBOY_REQUIRE(memory.ReadByte(0x8000) == 0x12);
+
+    memory.WriteByte(0x8000, 0x56);
+    MINTBOY_REQUIRE(memory.ReadByte(0x8000) == 0x56);
+}
+
+MINTBOY_TEST(ppu_blocks_cpu_oam_access_during_oam_and_pixel_transfer)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF40, 0x00);
+    memory.WriteByte(0xFE00, 0x12);
+    memory.WriteByte(0xFF40, 0x91);
+
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 2);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFE00) == 0xFF);
+    memory.WriteByte(0xFE00, 0x34);
+
+    memory.Tick(80);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 3);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFE00) == 0xFF);
+    memory.WriteByte(0xFE00, 0x56);
+
+    memory.Tick(172);
+    MINTBOY_REQUIRE((memory.ReadByte(0xFF41) & 0x03) == 0);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFE00) == 0x12);
+
+    memory.WriteByte(0xFE00, 0x78);
+    MINTBOY_REQUIRE(memory.ReadByte(0xFE00) == 0x78);
+}
+
 MINTBOY_TEST(ppu_enters_vblank_and_requests_interrupt)
 {
     mintboy::Cartridge cartridge = MakeCartridge();
