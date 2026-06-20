@@ -87,7 +87,13 @@ namespace mintboy
         int ppu_cycles_ = 0;
         bool video_rendering_enabled_ = true;
         bool scanline_rendered_ = false;
+        Byte latched_lcd_control_ = 0;
         Byte latched_scroll_x_ = 0;
         Byte latched_scroll_y_ = 0;
+        Byte latched_window_x_ = 0;
+        Byte latched_window_y_ = 0;
+        Byte latched_bg_palette_ = 0;
+        Byte latched_object_palette0_ = 0;
+        Byte latched_object_palette1_ = 0;
     };
 }

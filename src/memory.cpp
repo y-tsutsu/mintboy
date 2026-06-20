@@ -565,13 +565,19 @@ namespace mintboy
 
     void Memory::LatchScanlineRegisters()
     {
+        latched_lcd_control_ = io_registers_[LcdControlAddress - 0xFF00];
         latched_scroll_x_ = io_registers_[ScrollXAddress - 0xFF00];
         latched_scroll_y_ = io_registers_[ScrollYAddress - 0xFF00];
+        latched_window_x_ = io_registers_[WindowXAddress - 0xFF00];
+        latched_window_y_ = io_registers_[WindowYAddress - 0xFF00];
+        latched_bg_palette_ = io_registers_[BgPaletteAddress - 0xFF00];
+        latched_object_palette0_ = io_registers_[ObjectPalette0Address - 0xFF00];
+        latched_object_palette1_ = io_registers_[ObjectPalette1Address - 0xFF00];
     }
 
     void Memory::RenderScanline(Byte y)
     {
-        const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
+        const Byte lcd_control = latched_lcd_control_;
         const bool bg_enabled = (lcd_control & 0x01) != 0;
         std::array<Byte, ScreenWidth> background_color_indices{};
 
@@ -589,10 +595,10 @@ namespace mintboy
         const bool unsigned_tile_index = (lcd_control & 0x10) != 0;
         const Byte scroll_y = latched_scroll_y_;
         const Byte scroll_x = latched_scroll_x_;
-        const Byte bg_palette = io_registers_[BgPaletteAddress - 0xFF00];
+        const Byte bg_palette = latched_bg_palette_;
         const bool window_enabled = (lcd_control & 0x20) != 0;
-        const Byte window_y = io_registers_[WindowYAddress - 0xFF00];
-        const int window_x = static_cast<int>(io_registers_[WindowXAddress - 0xFF00]) - 7;
+        const Byte window_y = latched_window_y_;
+        const int window_x = static_cast<int>(latched_window_x_) - 7;
         const Word window_tile_map_base = (lcd_control & 0x40) != 0 ? 0x1C00 : 0x1800;
 
         for (int x = 0; x < ScreenWidth; ++x)
@@ -622,7 +628,7 @@ namespace mintboy
 
     void Memory::RenderSprites(Byte y, std::array<Byte, ScreenWidth> &background_color_indices)
     {
-        const Byte lcd_control = io_registers_[LcdControlAddress - 0xFF00];
+        const Byte lcd_control = latched_lcd_control_;
         if ((lcd_control & 0x02) == 0)
         {
             return;
@@ -648,8 +654,8 @@ namespace mintboy
             const bool y_flip = (attributes & 0x40) != 0;
             const bool x_flip = (attributes & 0x20) != 0;
             const Byte palette_value = (attributes & 0x10) != 0
-                                           ? io_registers_[ObjectPalette1Address - 0xFF00]
-                                           : io_registers_[ObjectPalette0Address - 0xFF00];
+                                           ? latched_object_palette1_
+                                           : latched_object_palette0_;
 
             int tile_line = static_cast<int>(y) - sprite_y;
             if (y_flip)
