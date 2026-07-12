@@ -69,6 +69,7 @@ namespace mintboy
         void UpdateLyCompareFlag();
         void LatchScanlineRegisters();
         [[nodiscard]] int PixelTransferEndCycle() const;
+        [[nodiscard]] bool IsWindowVisibleOnScanline(Byte y) const;
 
         Cartridge &cartridge_;
         Apu apu_{};
@@ -90,6 +91,7 @@ namespace mintboy
         int ppu_cycles_ = 0;
         bool video_rendering_enabled_ = true;
         bool scanline_rendered_ = false;
+        Byte window_line_counter_ = 0;
         Byte latched_lcd_control_ = 0;
         Byte latched_scroll_x_ = 0;
         Byte latched_scroll_y_ = 0;

@@ -325,6 +325,44 @@ MINTBOY_TEST(ppu_latches_window_state_at_scanline_start)
     MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
 }
 
+MINTBOY_TEST(ppu_advances_window_line_only_while_window_is_visible)
+{
+    mintboy::Cartridge cartridge = MakeCartridge();
+    mintboy::Memory memory(cartridge);
+
+    memory.WriteByte(0xFF40, 0x00);
+    memory.WriteByte(0x8000, 0x00);
+    memory.WriteByte(0x8001, 0x00);
+    memory.WriteByte(0x8010, 0xFF);
+    memory.WriteByte(0x8011, 0x00);
+    memory.WriteByte(0x8012, 0x00);
+    memory.WriteByte(0x8013, 0xFF);
+    memory.WriteByte(0x9800, 0x00);
+    memory.WriteByte(0x9C00, 0x01);
+    memory.WriteByte(0xFF47, 0xE4);
+    memory.WriteByte(0xFF4A, 0);
+    memory.WriteByte(0xFF4B, 7);
+    memory.WriteByte(0xFF40, 0x91);
+
+    memory.Tick(252);
+    memory.WriteByte(0xFF40, 0xF1);
+    memory.Tick(204);
+
+    memory.Tick(252);
+    const auto &framebuffer = memory.GetFramebuffer();
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth] == 0xFF8BAC0F);
+    memory.WriteByte(0xFF40, 0x91);
+    memory.Tick(204);
+
+    memory.Tick(252);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth * 2] == 0xFF9BBC0F);
+    memory.WriteByte(0xFF40, 0xF1);
+    memory.Tick(204);
+
+    memory.Tick(252);
+    MINTBOY_REQUIRE(framebuffer[mintboy::Memory::ScreenWidth * 3] == 0xFF306230);
+}
+
 MINTBOY_TEST(ppu_renders_window_tiles_over_background)
 {
     mintboy::Cartridge cartridge = MakeCartridge();

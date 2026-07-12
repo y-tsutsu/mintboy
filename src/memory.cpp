@@ -253,6 +253,7 @@ namespace mintboy
                     ppu_cycles_ = 0;
                     io_registers_[LyAddress - 0xFF00] = 0;
                     scanline_rendered_ = false;
+                    window_line_counter_ = 0;
                     SetPpuMode(0);
                 }
                 else if (!was_enabled)
@@ -260,6 +261,7 @@ namespace mintboy
                     ppu_cycles_ = 4;
                     io_registers_[LyAddress - 0xFF00] = 0;
                     scanline_rendered_ = false;
+                    window_line_counter_ = 0;
                     LatchScanlineRegisters();
                     SetPpuMode(2);
                 }
@@ -285,6 +287,7 @@ namespace mintboy
                 io_registers_[LyAddress - 0xFF00] = 0;
                 ppu_cycles_ = 0;
                 scanline_rendered_ = false;
+                window_line_counter_ = 0;
                 LatchScanlineRegisters();
                 UpdateLyCompareFlag();
                 return;
@@ -507,6 +510,11 @@ namespace mintboy
                 RenderScanline(ly);
             }
 
+            if (ly < 144 && IsWindowVisibleOnScanline(ly))
+            {
+                ++window_line_counter_;
+            }
+
             ++ly;
             scanline_rendered_ = false;
             LatchScanlineRegisters();
@@ -519,6 +527,7 @@ namespace mintboy
             else if (ly > 153)
             {
                 ly = 0;
+                window_line_counter_ = 0;
                 LatchScanlineRegisters();
                 SetPpuMode(2);
             }
@@ -591,6 +600,14 @@ namespace mintboy
         return 252 + (latched_scroll_x_ & 0x07);
     }
 
+    bool Memory::IsWindowVisibleOnScanline(Byte y) const
+    {
+        const bool bg_enabled = (latched_lcd_control_ & 0x01) != 0;
+        const bool window_enabled = (latched_lcd_control_ & 0x20) != 0;
+        const int window_x = static_cast<int>(latched_window_x_) - 7;
+        return bg_enabled && window_enabled && y >= latched_window_y_ && window_x < ScreenWidth;
+    }
+
     void Memory::RenderScanline(Byte y)
     {
         const Byte lcd_control = latched_lcd_control_;
@@ -612,16 +629,15 @@ namespace mintboy
         const Byte scroll_y = latched_scroll_y_;
         const Byte scroll_x = latched_scroll_x_;
         const Byte bg_palette = latched_bg_palette_;
-        const bool window_enabled = (lcd_control & 0x20) != 0;
-        const Byte window_y = latched_window_y_;
         const int window_x = static_cast<int>(latched_window_x_) - 7;
+        const bool window_visible = IsWindowVisibleOnScanline(y);
         const Word window_tile_map_base = (lcd_control & 0x40) != 0 ? 0x1C00 : 0x1800;
 
         for (int x = 0; x < ScreenWidth; ++x)
         {
-            const bool use_window = window_enabled && y >= window_y && x >= window_x;
+            const bool use_window = window_visible && x >= window_x;
             const Byte map_x = use_window ? static_cast<Byte>(x - window_x) : static_cast<Byte>(x + scroll_x);
-            const Byte map_y = use_window ? static_cast<Byte>(y - window_y) : static_cast<Byte>(y + scroll_y);
+            const Byte map_y = use_window ? window_line_counter_ : static_cast<Byte>(y + scroll_y);
             const std::size_t tile_column = map_x / 8;
             const std::size_t tile_row = map_y / 8;
             const Word selected_tile_map_base = use_window ? window_tile_map_base : tile_map_base;
